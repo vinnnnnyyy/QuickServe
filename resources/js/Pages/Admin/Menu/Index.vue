@@ -52,7 +52,7 @@ const filteredItems = computed(() => {
     filtered = filtered.filter(item => {
       const name = (item.name || '').toLowerCase();
       const description = (item.description || '').toLowerCase();
-      const category = (item.category || '').toLowerCase();
+      const category = (item.category?.name || '').toLowerCase();
       const price = (item.price || '').toString();
       
       return name.includes(query) || 
@@ -65,10 +65,11 @@ const filteredItems = computed(() => {
   // Filter by category
   if (currentFilter.value !== 'all') {
     filtered = filtered.filter(item => {
-      // Handle both category value and label matching
-      const itemCategory = item.category || 'Uncategorized';
-      return itemCategory === currentFilter.value || 
-             getCategoriesWithCounts([item]).some(cat => cat.value === currentFilter.value);
+      // Handle both category ID and name matching
+      const categoryId = item.category?.id;
+      const categoryName = item.category?.name || 'Uncategorized';
+      return categoryId === currentFilter.value || 
+             categoryName === currentFilter.value;
     });
   }
   
@@ -346,7 +347,7 @@ const onMenuAction = ({ key, row }) => {
           <span class="material-symbols-outlined">refresh</span>
         </button>
         <button 
-          @click="router.get('/admin/menu/add')"
+          @click="router.get('/admin/menu/create')"
           class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-all"
         >
           <span class="material-symbols-outlined">add</span>
@@ -417,7 +418,7 @@ const onMenuAction = ({ key, row }) => {
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No menu items found</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-4">Get started by adding your first menu item.</p>
             <button 
-              @click="router.get('/admin/menu/add')"
+              @click="router.get('/admin/menu/create')"
               class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-all"
             >
               <span class="material-symbols-outlined">add</span>
@@ -469,10 +470,10 @@ const onMenuAction = ({ key, row }) => {
           >
             <div class="relative group">
               <img 
-                :src="item.image" 
+                :src="item.image_url || '/images/placeholder.svg'" 
                 :alt="item.name" 
                 loading="lazy"
-                @error="e => { if (e.target.src !== '/images/placeholder.svg') e.target.src = '/images/placeholder.svg' }"
+                @error="e => e.target.src = '/images/placeholder.svg'"
                 class="w-full aspect-[3/2] object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               >
               <!-- Gradient overlay for better contrast -->
@@ -514,7 +515,7 @@ const onMenuAction = ({ key, row }) => {
               <!-- Header: name + price -->
               <div class="flex items-start justify-between mb-3">
                 <h4 class="font-semibold text-lg text-black dark:text-white truncate">{{ item.name }}</h4>
-                <span class="text-xl font-bold text-black dark:text-white">₱{{ Number(item.price || 0).toFixed(2) }}</span>
+                <span class="text-xl font-bold text-black dark:text-white">₱{{ Number(item.price_formatted || 0).toFixed(2) }}</span>
               </div>
 
               <!-- Description -->
@@ -524,7 +525,7 @@ const onMenuAction = ({ key, row }) => {
               <div class="flex items-center gap-2 mb-4">
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">
                   <span class="material-symbols-outlined text-sm">category</span>
-                  {{ item.category || 'Uncategorized' }}
+                  {{ item.category?.name || 'Uncategorized' }}
                 </span>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">
                   <span class="material-symbols-outlined text-sm">{{ item.temperature === 'Cold' ? 'ac_unit' : 'local_fire_department' }}</span>
@@ -553,7 +554,7 @@ const onMenuAction = ({ key, row }) => {
           <!-- Add New Item Card (only show if there are existing items) -->
           <div 
             v-if="menuItems.length > 0"
-            @click="router.get('/admin/menu/add')"
+            @click="router.get('/admin/menu/create')"
             class="bg-gray-50 dark:bg-gray-900/20 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg min-h-[420px] flex items-center justify-center hover:border-primary dark:hover:border-primary transition-all cursor-pointer group"
           >
             <div class="text-center">
@@ -635,10 +636,10 @@ const onMenuAction = ({ key, row }) => {
                     <div class="text-sm text-black/60 dark:text-white/60 line-clamp-1">{{ item.description }}</div>
                   </td>
                   <td class="py-4 px-6">
-                    <span class="text-gray-900 dark:text-white">{{ item.category || 'Uncategorized' }}</span>
+                    <span class="text-gray-900 dark:text-white">{{ item.category?.name || 'Uncategorized' }}</span>
                   </td>
                   <td class="py-4 px-6">
-                    <span class="text-gray-900 dark:text-white font-medium">₱{{ Number(item.price || 0).toFixed(2) }}</span>
+                    <span class="text-gray-900 dark:text-white font-medium">₱{{ Number(item.price_formatted || 0).toFixed(2) }}</span>
                   </td>
                   <td class="py-4 px-6">
                     <span 
@@ -709,7 +710,7 @@ const onMenuAction = ({ key, row }) => {
             <div class="space-y-4">
               <div class="relative">
                 <img 
-                  :src="selectedMenuItem.image" 
+                  :src="selectedMenuItem.image_url || '/images/placeholder.svg'" 
                   :alt="selectedMenuItem.name" 
                   class="w-full h-64 object-cover rounded-lg"
                 >
@@ -723,7 +724,7 @@ const onMenuAction = ({ key, row }) => {
                 </div>
                 <div class="absolute bottom-3 left-3">
                   <span class="bg-black/70 backdrop-blur text-white px-3 py-1 rounded-full text-sm font-medium">
-                    {{ selectedMenuItem.category }}
+                    {{ selectedMenuItem.category?.name || 'Uncategorized' }}
                   </span>
                 </div>
               </div>
@@ -742,11 +743,11 @@ const onMenuAction = ({ key, row }) => {
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Price</label>
-                  <p class="text-2xl font-bold text-primary">₱{{ Number(selectedMenuItem.price || 0).toFixed(2) }}</p>
+                  <p class="text-2xl font-bold text-primary">₱{{ Number(selectedMenuItem.price_formatted || 0).toFixed(2) }}</p>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Category</label>
-                  <p class="text-base text-black dark:text-white">{{ selectedMenuItem.category }}</p>
+                  <p class="text-base text-black dark:text-white">{{ selectedMenuItem.category?.name || 'Uncategorized' }}</p>
                 </div>
               </div>
 

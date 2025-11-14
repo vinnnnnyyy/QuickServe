@@ -1,10 +1,14 @@
 <?php
 
+use App\Http\Controllers\MenuItemController;
+use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
 use App\Services\JsonStorageService;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+
+// Home Page
 Route::get('/', function () {
     return Inertia::render('Customer/Home/Index', [
         'canLogin' => Route::has('login'),
@@ -12,128 +16,160 @@ Route::get('/', function () {
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
-});
+})->name('home');
 
-
-// Menu Route
+// Menu
 Route::get('/menu', function () {
     return Inertia::render('Customer/Menu/Index');
 })->name('menu');
 
 // Payment Routes
-Route::prefix('payment')->group(function () {
+Route::prefix('payment')->name('payment.')->group(function () {
     Route::get('/gcash/{orderId}', function ($orderId) {
         return Inertia::render('Customer/Payment/GCash', [
-            'orderId' => $orderId
+            'orderId' => $orderId,
         ]);
-    })->name('payment.gcash');
+    })->name('gcash');
 });
 
 // Order Routes
-Route::prefix('order')->group(function () {
+Route::prefix('order')->name('order.')->group(function () {
     Route::get('/confirmation/{orderId}', function ($orderId) {
         return Inertia::render('Customer/Order/Confirmation', [
-            'orderId' => $orderId
+            'orderId' => $orderId,
         ]);
-    })->name('order.confirmation');
-    
+    })->name('confirmation');
+
     Route::get('/status', function () {
         return Inertia::render('Customer/Order/Status');
-    })->name('order.status');
+    })->name('status');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Admin Authentication Routes
+|--------------------------------------------------------------------------
+*/
 
-// Admin Auth Routes
-Route::prefix('admin')->group(function () {
-    Route::get('login', [App\Http\Controllers\Admin\Auth\AuthenticatedSessionController::class, 'create'])
-        ->name('admin.login');
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+        ->name('login');
+
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])
+        ->name('login.store');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Admin Protected Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     
-    Route::post('login', [App\Http\Controllers\Admin\Auth\AuthenticatedSessionController::class, 'store'])
-        ->name('admin.login.store');
-});
-
-// Admin Routes (Protected)
-Route::middleware('admin')->prefix('admin')->group(function () {
+    // Dashboard
     Route::get('/dashboard', function () {
         return Inertia::render('Admin/Dashboard/Index');
-    })->name('admin.dashboard');
-    
-    Route::get('/orders', function (JsonStorageService $storage) {
-        $orders = $storage->get('orders');
-        return Inertia::render('Admin/Orders/Index', [
-            'orders' => $orders
+    })->name('dashboard');
+
+    // Orders Management
+    Route::prefix('orders')->name('orders.')->group(function () {
+        Route::get('/', function (JsonStorageService $storage) {
+            return Inertia::render('Admin/Orders/Index', [
+                'orders' => $storage->get('orders'),
+            ]);
+        })->name('index');
+
+        Route::get('/add', function () {
+            return Inertia::render('Admin/Orders/Create');
+        })->name('add');
+
+        Route::get('/{id}/edit', function ($id, JsonStorageService $storage) {
+            return Inertia::render('Admin/Orders/Edit', [
+                'order' => $storage->find('orders', (int)$id),
+                'id' => $id,
+            ]);
+        })->name('edit');
+    });
+
+    // Menu Management
+    Route::resource('menu', MenuItemController::class)
+        ->except(['show'])
+        ->names([
+            'index' => 'menu.index',
+            'create' => 'menu.create',
+            'store' => 'menu.store',
+            'edit' => 'menu.edit',
+            'update' => 'menu.update',
+            'destroy' => 'menu.destroy',
         ]);
-    })->name('admin.orders');
 
-            Route::get('/orders/add', function () {
-                return Inertia::render('Admin/Orders/Create');
-            })->name('admin.orders.add');
-
-    Route::get('/orders/{id}/edit', function ($id, JsonStorageService $storage) {
-        $order = $storage->find('orders', (int)$id);
-        return Inertia::render('Admin/Orders/Edit', [
-            'order' => $order,
-            'id' => $id
-        ]);
-    })->name('admin.orders.edit');
-    
-
-    Route::resource('menu', App\Http\Controllers\MenuItemController::class)->except(['show']);
-
-    
-    
+    // Analytics
     Route::get('/analytics', function () {
         return Inertia::render('Admin/Analytics/Index');
-    })->name('admin.analytics');
-    
-    Route::get('/inventory', function (JsonStorageService $storage) {
-        $inventory = $storage->get('inventory');
-        return Inertia::render('Admin/Inventory/Index', [
-            'inventory' => $inventory
-        ]);
-    })->name('admin.inventory');
+    })->name('analytics');
 
-    Route::get('/inventory/add', function () {
-        return Inertia::render('Admin/Inventory/Create');
-    })->name('admin.inventory.add');
-    
-    Route::get('/staff', function (JsonStorageService $storage) {
-        $staff = $storage->get('staff');
-        return Inertia::render('Admin/Staff/Index', [
-            'staff' => $staff->toArray()
-        ]);
-    })->name('admin.staff');
+    // Inventory Management
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('/', function (JsonStorageService $storage) {
+            return Inertia::render('Admin/Inventory/Index', [
+                'inventory' => $storage->get('inventory'),
+            ]);
+        })->name('index');
 
-    Route::get('/staff/add', function () {
-        return Inertia::render('Admin/Staff/Create');
-    })->name('admin.staff.add');
+        Route::get('/add', function () {
+            return Inertia::render('Admin/Inventory/Create');
+        })->name('add');
+    });
 
-    Route::get('/tables', function (JsonStorageService $storage) {
-        $tables = $storage->get('tables');
-        return Inertia::render('Admin/Tables/Index', [
-            'tables' => $tables
-        ]);
-    })->name('admin.tables');
+    // Staff Management
+    Route::prefix('staff')->name('staff.')->group(function () {
+        Route::get('/', function (JsonStorageService $storage) {
+            return Inertia::render('Admin/Staff/Index', [
+                'staff' => $storage->get('staff')->toArray(),
+            ]);
+        })->name('index');
 
-    Route::get('/tables/add', function () {
-        return Inertia::render('Admin/Tables/Create');
-    })->name('admin.tables.add');
+        Route::get('/add', function () {
+            return Inertia::render('Admin/Staff/Create');
+        })->name('add');
+    });
 
-    Route::get('/tables/{id}/edit', function ($id, JsonStorageService $storage) {
-        $table = $storage->find('tables', (int)$id);
-        return Inertia::render('Admin/Tables/Edit', [
-            'table' => $table,
-            'id' => $id
-        ]);
-    })->name('admin.tables.edit');
-    
+    // Tables Management
+    Route::prefix('tables')->name('tables.')->group(function () {
+        Route::get('/', function (JsonStorageService $storage) {
+            return Inertia::render('Admin/Tables/Index', [
+                'tables' => $storage->get('tables'),
+            ]);
+        })->name('index');
+
+        Route::get('/add', function () {
+            return Inertia::render('Admin/Tables/Create');
+        })->name('add');
+
+        Route::get('/{id}/edit', function ($id, JsonStorageService $storage) {
+            return Inertia::render('Admin/Tables/Edit', [
+                'table' => $storage->find('tables', (int)$id),
+                'id' => $id,
+            ]);
+        })->name('edit');
+    });
+
+    // Barista
     Route::get('/barista', function () {
         return Inertia::render('Admin/Barista/Index');
-    })->name('admin.barista');
-    
+    })->name('barista');
+
+    // Settings
     Route::get('/settings', function () {
         return Inertia::render('Admin/Settings/Index');
-    })->name('admin.settings');
+    })->name('settings');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Authentication Routes
+|--------------------------------------------------------------------------
+*/
 
 require __DIR__.'/auth.php';

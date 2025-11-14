@@ -1,10 +1,11 @@
 <?php
 
-use App\Http\Controllers\Api\MenuController;
+// use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\InventoryController;
+use App\Http\Controllers\Api\CategoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -12,16 +13,25 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-// Menu API routes
-Route::prefix('menu')->group(function () {
-    Route::get('/', [MenuController::class, 'index']);
-    Route::post('/', [MenuController::class, 'store']);
-    Route::get('/{id}', [MenuController::class, 'show']);
-    Route::put('/{id}', [MenuController::class, 'update']);
-    Route::delete('/{id}', [MenuController::class, 'destroy']);
-    Route::get('/category/{category}', [MenuController::class, 'byCategory']);
-    Route::post('/reset-sample-data', [MenuController::class, 'resetSampleData']);
+// Category API routes
+Route::prefix('categories')->name('api.categories.')->group(function () {
+    Route::get('/', [CategoryController::class, 'index'])->name('index');
+    Route::post('/', [CategoryController::class, 'store'])->name('store');
+    Route::get('/{id}', [CategoryController::class, 'show'])->name('show');
+    Route::put('/{id}', [CategoryController::class, 'update'])->name('update');
+    Route::delete('/{id}', [CategoryController::class, 'destroy'])->name('destroy');
 });
+
+// Menu API routes - Controller not yet implemented
+// Route::prefix('menu')->group(function () {
+//     Route::get('/', [MenuController::class, 'index']);
+//     Route::post('/', [MenuController::class, 'store']);
+//     Route::get('/{id}', [MenuController::class, 'show']);
+//     Route::put('/{id}', [MenuController::class, 'update']);
+//     Route::delete('/{id}', [MenuController::class, 'destroy']);
+//     Route::get('/category/{category}', [MenuController::class, 'byCategory']);
+//     Route::post('/reset-sample-data', [MenuController::class, 'resetSampleData']);
+// });
 
 // Orders API routes
 Route::prefix('orders')->group(function () {

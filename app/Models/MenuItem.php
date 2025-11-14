@@ -33,7 +33,11 @@ class MenuItem extends Model
         'featured' => 'boolean',
         'popular' => 'boolean',
         'available' => 'boolean',
+        'price' => 'integer',
     ];
+
+    // Append computed attributes to JSON
+    protected $appends = ['image_url', 'price_formatted'];
 
     // Relationship to User
     public function creator()
@@ -45,5 +49,20 @@ class MenuItem extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    // Accessor for image URL
+    public function getImageUrlAttribute()
+    {
+        if ($this->image_path) {
+            return asset('storage/' . $this->image_path);
+        }
+        return null;
+    }
+
+    // Accessor for formatted price (convert cents to dollars)
+    public function getPriceFormattedAttribute()
+    {
+        return $this->price / 100;
     }
 }

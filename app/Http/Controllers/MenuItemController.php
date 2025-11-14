@@ -20,6 +20,22 @@ class MenuItemController extends Controller
             'menuItems' => MenuItem::with('category')->get(),
         ]);
     }
+
+    public function create()
+    {
+        // Load all categories from database and pass to the component
+        $categories = Category::all()->map(function ($category) {
+            return [
+                'id' => $category->id,
+                'name' => $category->name,
+                'scope' => $category->scope,
+            ];
+        });
+
+        return Inertia::render('Admin/Menu/Create', [
+            'categories' => $categories,
+        ]);
+    }
     /**
      * Store a new menu item.
      */
@@ -71,6 +87,80 @@ class MenuItemController extends Controller
         // 4. Redirect back to the menu index page
         return redirect()->route('admin.menu.index') // Assuming you have this route
                          ->with('success', 'Menu item added successfully!');
+    }
+
+    /**
+     * Show the form for editing the specified menu item.
+     */
+    public function edit($id)
+    {
+        $menuItem = MenuItem::with('category')->findOrFail($id);
+        
+        // Load all categories from database
+        $categories = Category::all()->map(function ($category) {
+            return [
+                'id' => $category->id,
+                'name' => $category->name,
+                'scope' => $category->scope,
+            ];
+        });
+
+        return Inertia::render('Admin/Menu/Edit', [
+            'menuItem' => $menuItem,
+            'categories' => $categories,
+        ]);
+    }
+
+    /**
+     * Update the specified menu item.
+     */
+    public function update(Request $request, $id)
+    {
+        $menuItem = MenuItem::findOrFail($id);
+        
+        // Validate the incoming data
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'category_id' => 'required|integer|exists:categories,id',
+            'price' => 'required|numeric|min:0',
+            'temperature' => 'required|string|in:Hot,Cold,Both',
+            'prep_time' => 'nullable|string|max:255',
+            'size_labels' => 'required|array',
+            'size_labels.*' => 'string',
+            'featured' => 'required|boolean',
+            'popular' => 'required|boolean',
+            'available' => 'required|boolean',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
+            'notes' => 'nullable|string',
+        ]);
+
+        // Handle image upload if new image is provided
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('menu_images', 'public');
+            $validated['image_path'] = $imagePath;
+        }
+
+        // Update price to cents
+        $validated['price'] = (int) ($validated['price'] * 100);
+
+        // Update the menu item
+        $menuItem->update($validated);
+
+        return redirect()->route('admin.menu.index')
+                         ->with('success', 'Menu item updated successfully!');
+    }
+
+    /**
+     * Remove the specified menu item.
+     */
+    public function destroy($id)
+    {
+        $menuItem = MenuItem::findOrFail($id);
+        $menuItem->delete();
+
+        return redirect()->route('admin.menu.index')
+                         ->with('success', 'Menu item deleted successfully!');
     }
 
     public function storeCategory(Request $request)

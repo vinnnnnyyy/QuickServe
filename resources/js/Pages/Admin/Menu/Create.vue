@@ -5,9 +5,17 @@ import FormInput from '@/Components/Admin/Forms/FormInput.vue';
 import FormSelect from '@/Components/Admin/Forms/FormSelect.vue';
 import FormTextarea from '@/Components/Admin/Forms/FormTextarea.vue';
 import FormSection from '@/Components/Admin/Forms/FormSection.vue';
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { router, useForm } from '@inertiajs/vue3'; // Import useForm
 import { useMenuCategories } from '@/composables/useMenuCategories.js';
+
+// --- Props ---
+const props = defineProps({
+  categories: {
+    type: Array,
+    default: () => []
+  }
+});
 
 // --- Form Data ---
 // Replace ref with useForm
@@ -42,8 +50,19 @@ const {
   allCategories 
 } = useMenuCategories();
 
-// Assumes getFormSelectOptions returns: [{ value: 1, label: 'Coffee' }, ...]
-const categoryOptions = ref(getFormSelectOptions());
+// Initialize category options with database categories
+const categoryOptions = ref([]);
+
+// Load categories from database on mount
+onMounted(() => {
+  // Convert database categories to the format expected by FormSelect
+  const dbCategories = props.categories.map(cat => ({
+    value: cat.id,
+    label: cat.name
+  }));
+  
+  categoryOptions.value = dbCategories;
+});
 
 // --- Temperature ---
 const temperatureOptions = [
@@ -112,19 +131,16 @@ const addNewCategory = async () => {
     if (response.ok) {
       const newCategoryData = await response.json(); // e.g., { id: 5, name: 'Pastries' }
 
-      // 2. Add to local composable to update UI
-      addCategory({
+      // 2. Add to the local dropdown options
+      categoryOptions.value.push({
         value: newCategoryData.id,
-        label: newCategoryData.name,
-        icon: 'restaurant_menu',
-        description: `Custom category: ${newCategoryData.name}`
+        label: newCategoryData.name
       });
 
       // 3. Set the form's value to the new ID
       form.category_id = newCategoryData.id;
       
-      // 4. Refresh options and reset UI
-      categoryOptions.value = getFormSelectOptions();
+      // 4. Reset UI
       showNewCategory.value = false;
       newCategory.value = '';
 
