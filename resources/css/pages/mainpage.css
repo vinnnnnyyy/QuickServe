@@ -1,0 +1,127 @@
+/* resources/css/pages/quest.css */
+.quest-page {
+  min-height: 100dvh;
+  -webkit-overflow-scrolling: touch;
+  font-family: 'Satoshi', sans-serif;
+  background: #fafafa;
+  background-image:
+    radial-gradient(at 100% 0%, rgba(249, 115, 22, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(249, 115, 22, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+.quest-page h1,
+.quest-page h2,
+.quest-page h3,
+.quest-page h4,
+.quest-page h5,
+.quest-page h6 {
+  font-family: 'Clash Display', sans-serif;
+}
+
+/* Enhanced scrollbar */
+.quest-page .custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(161, 161, 170, 0.5) transparent;
+  scroll-behavior: smooth;
+}
+.quest-page .custom-scroll::-webkit-scrollbar { height: 6px; width: 6px; }
+.quest-page .custom-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin: 2px;
+}
+.quest-page .custom-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, rgba(249, 115, 22, 0.6), rgba(234, 88, 12, 0.6));
+  border-radius: 3px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.quest-page .custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, rgba(249, 115, 22, 0.8), rgba(234, 88, 12, 0.8));
+  transform: scale(1.1);
+}
+.quest-page .custom-scroll::-webkit-scrollbar-corner { background: transparent; }
+
+/* Glass effect */
+.quest-page .glass {
+  background: var(--surface-gradient);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.quest-page .glass-hover { transition: all 0.3s ease; }
+.quest-page .glass-hover:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Better touch targets */
+@media (max-width: 767px) {
+  .quest-page .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Safe area support */
+.quest-page .safe-area-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+/* Text truncation */
+.quest-page .line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Full screen layout */
+.quest-page .full-screen { width: 100vw; min-height: 100vh; }
+
+/* Focus styles */
+.quest-page .focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #f97316;
+}
+
+/* Enhanced smooth scrolling (limit to this page container) */
+.quest-page { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+/* Scroll enhancements */
+.quest-page .scroll-smooth { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+
+/* Scroll snap for better UX */
+.quest-page .snap-scroll { scroll-snap-type: x mandatory; scroll-padding: 0 16px; }
+.quest-page .snap-item { scroll-snap-align: start; scroll-snap-stop: normal; }
+
+/* Momentum scrolling for iOS */
+.quest-page .momentum-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+
+/* iOS text size */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .quest-page input,
+  .quest-page select,
+  .quest-page textarea {
+    font-size: 16px;
+  }
+}
+
+/* Modern card effect */
+.quest-page .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.quest-page .card-hover:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Gradient text */
+.quest-page .gradient-text {
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}

@@ -1,0 +1,113 @@
+[
+    {
+      "id": 1,
+      "name": "Iced Brown Sugar Oatmilk Shaken Espresso",
+      "description": "Rich espresso with brown sugar syrup and oat milk, shaken with ice",
+      "price": 300,
+      "originalPrice": null,
+      "rating": 4.9,
+      "reviewCount": "2.1k",
+      "calories": 280,
+      "prepTime": "3-5 min",
+      "category": "coffee",
+      "image": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=400&fit=crop",
+      "badge": {
+        "text": "Popular",
+        "color": "bg-primary-500 text-white"
+      },
+      "status": {
+        "text": "Featured",
+        "color": "bg-blue-100 text-blue-700"
+      },
+      "tags": ["Espresso", "Oat Milk", "Iced"]
+    },
+    {
+      "id": 2,
+      "name": "Pistachio Cream Cold Brew",
+      "description": "Smooth cold brew coffee with creamy pistachio flavor",
+      "price": 300,
+      "originalPrice": null,
+      "rating": 4.7,
+      "reviewCount": "1.8k",
+      "calories": 240,
+      "prepTime": "2-3 min",
+      "category": "coffee",
+      "image": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=400&fit=crop",
+      "badge": {
+        "text": "New",
+        "color": "bg-blue-500 text-white"
+      },
+      "status": {
+        "text": "Popular",
+        "color": "bg-purple-100 text-purple-700"
+      },
+      "tags": ["Cold Brew", "Pistachio", "Cream"]
+    },
+    {
+      "id": 3,
+      "name": "Classic Americano",
+      "description": "Pure espresso with hot water for a clean, bold coffee taste",
+      "price": 400,
+      "originalPrice": null,
+      "rating": 4.5,
+      "reviewCount": "950",
+      "calories": 15,
+      "prepTime": "2-3 min",
+      "category": "coffee",
+      "image": "https://images.unsplash.com/photo-1497636577773-f1231844b336?w=400&h=400&fit=crop",
+      "badge": {
+        "text": "Classic",
+        "color": "bg-green-500 text-white"
+      },
+      "status": {
+        "text": "Available",
+        "color": "bg-green-100 text-green-700"
+      },
+      "tags": ["Espresso", "Hot", "Classic"]
+    },
+    {
+      "id": 4,
+      "name": "Iced Matcha Latte",
+      "description": "Premium matcha powder with steamed milk and natural sweetness",
+      "price": 150,
+      "originalPrice": null,
+      "rating": 4.7,
+      "reviewCount": "1.2k",
+      "calories": 180,
+      "prepTime": "3-4 min",
+      "category": "tea",
+      "image": "https://images.unsplash.com/photo-1515823064-d6e0c04616a7?w=400&h=400&fit=crop",
+      "badge": {
+        "text": "Healthy",
+        "color": "bg-teal-500 text-white"
+      },
+      "status": {
+        "text": "Available",
+        "color": "bg-green-100 text-green-700"
+      },
+      "tags": ["Matcha", "Milk", "Iced", "Healthy"]
+    },
+
+    {
+        "id": 5,
+        "name": "Iced Green Tea Latte",
+        "description": "Pure espresso with hot water for a clean, bold coffee taste",
+        "price": 200,
+        "originalPrice": null,
+        "rating": 4.5,
+        "reviewCount": "950",
+        "calories": 15,
+        "prepTime": "2-3 min",
+        "category": "coffee",
+        "image": "https://images.unsplash.com/photo-1497636577773-f1231844b336?w=400&h=400&fit=crop",
+        "badge": {
+          "text": "Popular",
+          "color": "bg-green-500 text-white"
+        },
+        "status": {
+          "text": "Available",
+          "color": "bg-green-100 text-green-700"
+        },
+        "tags": ["Green Tea", "Milk", "Iced", "Healthy"]
+      }
+  ] 

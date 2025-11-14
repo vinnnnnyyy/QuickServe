@@ -1,0 +1,37 @@
+[
+    {
+      "id": "all",
+      "name": "All Drinks",
+      "active": true,
+      "description": "All available drinks",
+      "icon": "fas fa-coffee"
+    },
+    {
+      "id": "coffee",
+      "name": "Coffee",
+      "active": false,
+      "description": "Hot and cold coffee drinks",
+      "icon": "fas fa-mug-hot"
+    },
+    {
+      "id": "tea",
+      "name": "Tea",
+      "active": false,
+      "description": "Various tea selections",
+      "icon": "fas fa-leaf"
+    },
+    {
+      "id": "smoothies",
+      "name": "Smoothies",
+      "active": false,
+      "description": "Fresh fruit smoothies",
+      "icon": "fas fa-blender"
+    },
+    {
+      "id": "seasonal",
+      "name": "Seasonal",
+      "active": false,
+      "description": "Limited time seasonal drinks",
+      "icon": "fas fa-snowflake"
+    }
+  ]
