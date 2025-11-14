@@ -9,14 +9,13 @@ import Welcomebanner from '../../../Components/Customer/Header/WelcomeBanner.vue
 import Pagination from '../../../Components/Customer/UI/Pagination.vue'
 import LoadingSpinner from '../../../Components/Shared/Base/LoadingSpinner.vue'
 import { useCart } from '../../../composables/useCart.js'
+import { useSelectionModal } from '../../../composables/useSelectionModal.js'
+import { toProduct, slugify } from '../../../composables/productTransform.js'
 
 // ============================================================================
 // Constants
 // ============================================================================
 const API_URL = '/api/menu'
-const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=Menu+Item'
-const DEFAULT_RATING = 4.6
-const DEFAULT_REVIEW_COUNT = 128
 
 // ============================================================================
 // State Management
@@ -31,10 +30,17 @@ const categories = ref([
   { id: 'all', name: 'All Items', active: true, description: 'All available items', icon: 'fas fa-list' }
 ])
 
-// Modal state
-const showModal = ref(false)
+// Modal state (reusable composable for product detail modal)
+const { 
+  selected: selectedProduct, 
+  isOpen: showModal, 
+  open: openProductModal, 
+  close: closeProductModal 
+} = useSelectionModal()
+
+// Custom modal state (still uses inline ref)
 const showCustomModal = ref(false)
-const selectedProduct = ref(null)
+const selectedCustomProduct = ref(null)
 
 // Pagination state
 const currentPage = ref(1)
@@ -49,19 +55,6 @@ let abortController = null
 // ============================================================================
 // Helper Functions
 // ============================================================================
-/**
- * Convert a string to a URL-friendly slug
- */
-const slugify = (str) => {
-  if (!str) return ''
-  return str
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-}
-
 /**
  * Get FontAwesome icon class for a category
  */
@@ -91,49 +84,6 @@ const buildCategories = (names) => [
     icon: categoryIcon(name)
   }))
 ]
-
-/**
- * Transform API menu item to UI product format
- */
-const toProduct = (item) => {
-  // Extract category name from relation or fallback to string
-  const categoryName = item?.category?.name ?? item?.category ?? 'uncategorized'
-  
-  return {
-    id: item?.id,
-    name: item?.name,
-    description: item?.description ?? '',
-    // Use price_formatted accessor (cents to dollars) or fallback
-    price: Number(item?.price_formatted ?? ((item?.price ?? 0) / 100)),
-    // Use image_url accessor from model for storage symlink
-    image: item?.image_url ?? PLACEHOLDER_IMAGE,
-    category: slugify(categoryName),
-    // Use deterministic defaults instead of random values
-    rating: item?.rating ?? DEFAULT_RATING,
-    reviewCount: item?.review_count ?? DEFAULT_REVIEW_COUNT,
-    badge: item?.featured ? {
-      text: 'Featured',
-      color: 'bg-blue-500 text-white'
-    } : item?.popular ? {
-      text: 'Popular',
-      color: 'bg-primary-500 text-white'
-    } : null,
-    status: {
-      text: item?.available ? 'Available' : 'Out of Stock',
-      color: item?.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-    },
-    tags: [
-      categoryName,
-      item?.temperature,
-      ...(item?.popular ? ['popular'] : [])
-    ].filter(Boolean)
-  }
-}
-
-/**
- * Format price as currency
- */
-const formatPrice = (price) => `₱${Number(price).toFixed(2)}`
 
 // ============================================================================
 // Computed Properties
@@ -228,13 +178,11 @@ const handleAddToCart = (product) => {
 }
 
 const handleViewDetails = (product) => {
-  selectedProduct.value = product
-  showModal.value = true
+  openProductModal(product)
 }
 
 const handleCloseModal = () => {
-  showModal.value = false
-  selectedProduct.value = null
+  closeProductModal()
 }
 
 const handleAddToCartFromModal = (productWithQuantity) => {
@@ -242,13 +190,13 @@ const handleAddToCartFromModal = (productWithQuantity) => {
 }
 
 const handleCustomize = (product) => {
-  selectedProduct.value = product
+  selectedCustomProduct.value = product
   showCustomModal.value = true
 }
 
 const handleCloseCustomModal = () => {
   showCustomModal.value = false
-  selectedProduct.value = null
+  selectedCustomProduct.value = null
 }
 
 const handleAddCustomToCart = (customizedProduct) => {
@@ -349,7 +297,7 @@ onUnmounted(() => {
             <!-- Custom Product Modal -->
             <CustomProductModal
                 :show="showCustomModal"
-                :product="selectedProduct"
+                :product="selectedCustomProduct"
                 @close="handleCloseCustomModal"
                 @add-to-cart="handleAddCustomToCart"
             />

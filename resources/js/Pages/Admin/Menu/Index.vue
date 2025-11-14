@@ -7,6 +7,7 @@ import TableActionsDropdown from '@/Components/Admin/UI/TableActionsDropdown.vue
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useMenuCategories } from '@/composables/useMenuCategories.js';
+import { useSelectionModal } from '@/composables/useSelectionModal.js';
 
 // Accept props from Inertia
 const props = defineProps({
@@ -83,22 +84,13 @@ const filteredItems = computed(() => {
   return filtered;
 });
 
-// Modal state
-const showMenuModal = ref(false);
-const selectedMenuItem = ref(null);
-
-const openMenuItemModal = (itemName) => {
-  const item = menuItems.value.find(i => i.name === itemName);
-  if (item) {
-    selectedMenuItem.value = item;
-    showMenuModal.value = true;
-  }
-};
-
-const closeMenuModal = () => {
-  showMenuModal.value = false;
-  selectedMenuItem.value = null;
-};
+// Modal state (reusable composable)
+const { 
+  selected: selectedMenuItem, 
+  isOpen: showMenuModal, 
+  open: openMenuItemModal, 
+  close: closeMenuModal 
+} = useSelectionModal();
 
 // Pagination logic
 const currentPage = ref(1);
@@ -240,7 +232,7 @@ const getMenuActions = (item) => {
       key: 'view',
       label: 'View Details',
       icon: 'visibility',
-      onClick: () => openMenuItemModal(item.name)
+      onClick: () => openMenuItemModal(item)
     },
     {
       key: 'edit',
@@ -482,7 +474,7 @@ const onMenuAction = ({ key, row }) => {
               <!-- Hover quick actions -->
               <div class="absolute inset-x-3 bottom-3 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
-                  @click="openMenuItemModal(item.name)" 
+                  @click="openMenuItemModal(item)" 
                   class="p-1.5 rounded-lg bg-white/90 dark:bg-black/60 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-black transition"
                   title="View"
                 >
