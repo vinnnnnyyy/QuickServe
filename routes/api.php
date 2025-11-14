@@ -1,6 +1,6 @@
 <?php
 
-// use App\Http\Controllers\Api\MenuController;
+use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\TableController;
@@ -22,53 +22,54 @@ Route::prefix('categories')->name('api.categories.')->group(function () {
     Route::delete('/{id}', [CategoryController::class, 'destroy'])->name('destroy');
 });
 
-// Menu API routes - Controller not yet implemented
-// Route::prefix('menu')->group(function () {
-//     Route::get('/', [MenuController::class, 'index']);
-//     Route::post('/', [MenuController::class, 'store']);
-//     Route::get('/{id}', [MenuController::class, 'show']);
-//     Route::put('/{id}', [MenuController::class, 'update']);
-//     Route::delete('/{id}', [MenuController::class, 'destroy']);
-//     Route::get('/category/{category}', [MenuController::class, 'byCategory']);
-//     Route::post('/reset-sample-data', [MenuController::class, 'resetSampleData']);
-// });
+
+// Menu API routes
+Route::prefix('menu')->name('api.menu.')->group(function () {
+    Route::get('/', [MenuController::class, 'index'])->name('index');
+    Route::post('/', [MenuController::class, 'store'])->name('store');
+    Route::get('/category/{category}', [MenuController::class, 'byCategory'])->name('byCategory');
+    Route::post('/reset-sample-data', [MenuController::class, 'resetSampleData'])->name('resetSampleData');
+    Route::get('/{id}', [MenuController::class, 'show'])->name('show');
+    Route::put('/{id}', [MenuController::class, 'update'])->name('update');
+    Route::delete('/{id}', [MenuController::class, 'destroy'])->name('destroy');
+});
 
 // Orders API routes
-Route::prefix('orders')->group(function () {
-    Route::get('/', [OrderController::class, 'index']);
-    Route::post('/', [OrderController::class, 'store']);
-    Route::get('/{id}', [OrderController::class, 'show']);
-    Route::put('/{id}', [OrderController::class, 'update']);
-    Route::delete('/{id}', [OrderController::class, 'destroy']);
-    Route::put('/{id}/status', [OrderController::class, 'updateStatus']);
+Route::prefix('orders')->name('api.orders.')->group(function () {
+    Route::get('/', [OrderController::class, 'index'])->name('index');
+    Route::post('/', [OrderController::class, 'store'])->name('store');
+    Route::get('/{id}', [OrderController::class, 'show'])->name('show');
+    Route::put('/{id}', [OrderController::class, 'update'])->name('update');
+    Route::delete('/{id}', [OrderController::class, 'destroy'])->name('destroy');
+    Route::put('/{id}/status', [OrderController::class, 'updateStatus'])->name('updateStatus');
 });
 
 // Staff API routes
-Route::prefix('staff')->group(function () {
-    Route::get('/', [StaffController::class, 'index']);
-    Route::post('/', [StaffController::class, 'store']);
-    Route::get('/{id}', [StaffController::class, 'show']);
-    Route::put('/{id}', [StaffController::class, 'update']);
-    Route::delete('/{id}', [StaffController::class, 'destroy']);
+Route::prefix('staff')->name('api.staff.')->group(function () {
+    Route::get('/', [StaffController::class, 'index'])->name('index');
+    Route::post('/', [StaffController::class, 'store'])->name('store');
+    Route::get('/{id}', [StaffController::class, 'show'])->name('show');
+    Route::put('/{id}', [StaffController::class, 'update'])->name('update');
+    Route::delete('/{id}', [StaffController::class, 'destroy'])->name('destroy');
 });
 
 // Tables API routes
-Route::prefix('tables')->group(function () {
-    Route::get('/', [TableController::class, 'index']);
-    Route::post('/', [TableController::class, 'store']);
-    Route::get('/{id}', [TableController::class, 'show']);
-    Route::put('/{id}', [TableController::class, 'update']);
-    Route::delete('/{id}', [TableController::class, 'destroy']);
-    Route::put('/{id}/status', [TableController::class, 'updateStatus']);
+Route::prefix('tables')->name('api.tables.')->group(function () {
+    Route::get('/', [TableController::class, 'index'])->name('index');
+    Route::post('/', [TableController::class, 'store'])->name('store');
+    Route::get('/{id}', [TableController::class, 'show'])->name('show');
+    Route::put('/{id}', [TableController::class, 'update'])->name('update');
+    Route::delete('/{id}', [TableController::class, 'destroy'])->name('destroy');
+    Route::put('/{id}/status', [TableController::class, 'updateStatus'])->name('updateStatus');
 });
 
 // Inventory API routes
-Route::prefix('inventory')->group(function () {
-    Route::get('/', [InventoryController::class, 'index']);
-    Route::post('/', [InventoryController::class, 'store']);
-    Route::get('/{id}', [InventoryController::class, 'show']);
-    Route::put('/{id}', [InventoryController::class, 'update']);
-    Route::delete('/{id}', [InventoryController::class, 'destroy']);
+Route::prefix('inventory')->name('api.inventory.')->group(function () {
+    Route::get('/', [InventoryController::class, 'index'])->name('index');
+    Route::post('/', [InventoryController::class, 'store'])->name('store');
+    Route::get('/{id}', [InventoryController::class, 'show'])->name('show');
+    Route::put('/{id}', [InventoryController::class, 'update'])->name('update');
+    Route::delete('/{id}', [InventoryController::class, 'destroy'])->name('destroy');
 });
 
 // Analytics routes

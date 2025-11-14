@@ -1,6 +1,5 @@
 <?php
-
-use App\Http\Controllers\MenuItemController;
+use App\Http\Controllers\Web\MenuItemController;
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
 use App\Services\JsonStorageService;
 use Illuminate\Foundation\Application;
