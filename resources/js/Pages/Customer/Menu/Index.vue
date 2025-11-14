@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import CustomerLayout from '../../../Layouts/CustomerLayout.vue'
 import ProductsSection from '../../../Components/Customer/Products/ProductList.vue'
@@ -10,13 +10,26 @@ import Pagination from '../../../Components/Customer/UI/Pagination.vue'
 import LoadingSpinner from '../../../Components/Shared/Base/LoadingSpinner.vue'
 import { useCart } from '../../../composables/useCart.js'
 
-// Menu items from API
+// ============================================================================
+// Constants
+// ============================================================================
+const API_URL = '/api/menu'
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=Menu+Item'
+const DEFAULT_RATING = 4.6
+const DEFAULT_REVIEW_COUNT = 128
+
+// ============================================================================
+// State Management
+// ============================================================================
+// Core state
 const menuItems = ref([])
 const loading = ref(true)
 const error = ref(null)
 
-// Categories - will be built dynamically from menu items
-const categories = ref([])
+// Categories derived from API data
+const categories = ref([
+  { id: 'all', name: 'All Items', active: true, description: 'All available items', icon: 'fas fa-list' }
+])
 
 // Modal state
 const showModal = ref(false)
@@ -27,172 +40,248 @@ const selectedProduct = ref(null)
 const currentPage = ref(1)
 const itemsPerPage = ref(12)
 
-// Fetch menu items from API
-const fetchMenuItems = async () => {
-    try {
-        loading.value = true
-        error.value = null
-        
-        const response = await fetch('/api/menu', {
-            headers: {
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error(`Failed to fetch menu: ${response.status}`)
-        }
-        
-        const data = await response.json()
-        const items = Array.isArray(data) ? data : []
-        menuItems.value = items
-        
-        // Build dynamic categories from fetched data
-        const uniqueNames = [...new Set(items.map(i => i.category).filter(Boolean))]
-        categories.value = buildCategories(uniqueNames)
-        
-    } catch (err) {
-        console.error('Error fetching menu items:', err)
-        error.value = err.message
-        menuItems.value = []
-    } finally {
-        loading.value = false
-    }
-}
-
-// Map menu items to product format for components (same as home page)
-const products = computed(() => {
-    // Ensure menuItems.value is always an array
-    const items = Array.isArray(menuItems.value) ? menuItems.value : [];
-    return items.map(item => ({
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        price: Number(item.price) || 0,
-        image: item.image || 'https://via.placeholder.com/400x300?text=Menu+Item',
-        category: slugify(item.category || 'uncategorized'),
-        rating: Number((4.5 + Math.random() * 0.5).toFixed(1)),
-        reviewCount: Math.floor(Math.random() * 200) + 50,
-        badge: item.featured ? {
-            text: 'Featured',
-            color: 'bg-blue-500 text-white'
-        } : item.popular ? {
-            text: 'Popular', 
-            color: 'bg-primary-500 text-white'
-        } : null,
-        status: {
-            text: item.available ? 'Available' : 'Out of Stock',
-            color: item.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-        },
-        tags: [
-            item.category, 
-            item.temperature,
-            ...(item.popular ? ['popular'] : [])
-        ].filter(Boolean)
-    }))
-})
-
-// Use global cart state
+// Cart composable
 const { addToCart } = useCart()
 
-// Helper functions for dynamic categories
-const slugify = (s) => s?.toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || ''
-const categoryIcon = (name) => ({
-  'hot drinks': 'fas fa-mug-hot',
-  'cold drinks': 'fas fa-ice-cream',
-  'specialty coffee': 'fas fa-coffee',
-  'tea & infusions': 'fas fa-leaf',
-  'pastries': 'fas fa-bread-slice',
-  'sandwiches': 'fas fa-utensils',
-  'desserts': 'fas fa-ice-cream'
-}[name?.toLowerCase()] || 'fas fa-coffee')
+// Request cancellation
+let abortController = null
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+/**
+ * Convert a string to a URL-friendly slug
+ */
+const slugify = (str) => {
+  if (!str) return ''
+  return str
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+}
+
+/**
+ * Get FontAwesome icon class for a category
+ */
+const categoryIcon = (name) => {
+  const icons = {
+    'hot drinks': 'fas fa-mug-hot',
+    'cold drinks': 'fas fa-ice-cream',
+    'specialty coffee': 'fas fa-coffee',
+    'tea & infusions': 'fas fa-leaf',
+    'pastries': 'fas fa-bread-slice',
+    'sandwiches': 'fas fa-utensils',
+    'desserts': 'fas fa-ice-cream'
+  }
+  return icons[name?.toLowerCase()] || 'fas fa-coffee'
+}
+
+/**
+ * Build category list with "All Items" prepended
+ */
 const buildCategories = (names) => [
   { id: 'all', name: 'All Items', active: true, description: 'All available items', icon: 'fas fa-list' },
-  ...names.map(n => ({ id: slugify(n), name: n, active: false, description: '', icon: categoryIcon(n) }))
+  ...names.map(name => ({
+    id: slugify(name),
+    name,
+    active: false,
+    description: '',
+    icon: categoryIcon(name)
+  }))
 ]
 
-// Computed property for filtered products based on active category
+/**
+ * Transform API menu item to UI product format
+ */
+const toProduct = (item) => {
+  // Extract category name from relation or fallback to string
+  const categoryName = item?.category?.name ?? item?.category ?? 'uncategorized'
+  
+  return {
+    id: item?.id,
+    name: item?.name,
+    description: item?.description ?? '',
+    // Use price_formatted accessor (cents to dollars) or fallback
+    price: Number(item?.price_formatted ?? ((item?.price ?? 0) / 100)),
+    // Use image_url accessor from model for storage symlink
+    image: item?.image_url ?? PLACEHOLDER_IMAGE,
+    category: slugify(categoryName),
+    // Use deterministic defaults instead of random values
+    rating: item?.rating ?? DEFAULT_RATING,
+    reviewCount: item?.review_count ?? DEFAULT_REVIEW_COUNT,
+    badge: item?.featured ? {
+      text: 'Featured',
+      color: 'bg-blue-500 text-white'
+    } : item?.popular ? {
+      text: 'Popular',
+      color: 'bg-primary-500 text-white'
+    } : null,
+    status: {
+      text: item?.available ? 'Available' : 'Out of Stock',
+      color: item?.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+    },
+    tags: [
+      categoryName,
+      item?.temperature,
+      ...(item?.popular ? ['popular'] : [])
+    ].filter(Boolean)
+  }
+}
+
+/**
+ * Format price as currency
+ */
+const formatPrice = (price) => `₱${Number(price).toFixed(2)}`
+
+// ============================================================================
+// Computed Properties
+// ============================================================================
+/**
+ * Transform menu items into product format for UI components
+ */
+const products = computed(() => {
+  const items = Array.isArray(menuItems.value) ? menuItems.value : []
+  return items.map(toProduct)
+})
+
+/**
+ * Filter products by active category
+ */
 const filteredProducts = computed(() => {
-    const activeCategory = categories.value.find(cat => cat.active)
-    if (!activeCategory || activeCategory.id === 'all') {
-        return products.value
-    }
-    return products.value.filter(product => 
-        product.category === activeCategory.id
-    )
+  const activeCategory = categories.value.find(cat => cat.active)
+  if (!activeCategory || activeCategory.id === 'all') {
+    return products.value
+  }
+  return products.value.filter(product => product.category === activeCategory.id)
 })
 
-// Computed property for paginated products
+/**
+ * Paginate filtered products
+ */
 const paginatedProducts = computed(() => {
-    const start = (currentPage.value - 1) * itemsPerPage.value
-    const end = start + itemsPerPage.value
-    return filteredProducts.value.slice(start, end)
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredProducts.value.slice(start, end)
 })
 
-// Event handlers (same as home page)
-const handleCategorySelected = (selectedCategory) => {
-    categories.value.forEach(cat => {
-        cat.active = cat.id === selectedCategory.id
+// ============================================================================
+// API Functions
+// ============================================================================
+/**
+ * Fetch menu items from API with request cancellation
+ */
+const fetchMenuItems = async () => {
+  try {
+    loading.value = true
+    error.value = null
+
+    // Cancel any in-flight request
+    if (abortController) {
+      abortController.abort()
+    }
+    abortController = new AbortController()
+
+    const response = await window.axios.get(API_URL, {
+      headers: { Accept: 'application/json' },
+      signal: abortController.signal
     })
-    // Reset to first page when category changes
-    currentPage.value = 1
+
+    const items = Array.isArray(response.data) ? response.data : []
+    menuItems.value = items
+
+    // Build dynamic categories from category relation (item.category.name)
+    const uniqueNames = [...new Set(
+      items.map(item => item?.category?.name ?? item?.category).filter(Boolean)
+    )]
+    categories.value = buildCategories(uniqueNames)
+  } catch (err) {
+    // Handle axios errors gracefully
+    if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+      return // Request was cancelled, ignore
+    }
+    
+    const status = err?.response?.status
+    const message = err?.response?.data?.message ?? err?.message ?? 'Failed to load menu'
+    error.value = status ? `${message} (HTTP ${status})` : message
+    menuItems.value = []
+    
+    console.error('Error fetching menu items:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// ============================================================================
+// Event Handlers
+// ============================================================================
+const handleCategorySelected = (selectedCategory) => {
+  categories.value.forEach(cat => {
+    cat.active = cat.id === selectedCategory.id
+  })
+  currentPage.value = 1
 }
 
 const handleAddToCart = (product) => {
-    addToCart(product)
+  addToCart(product)
 }
 
 const handleViewDetails = (product) => {
-    console.log('Viewing details for:', product)
-    selectedProduct.value = product
-    showModal.value = true
+  selectedProduct.value = product
+  showModal.value = true
 }
 
 const handleCloseModal = () => {
-    showModal.value = false
-    selectedProduct.value = null
+  showModal.value = false
+  selectedProduct.value = null
 }
 
 const handleAddToCartFromModal = (productWithQuantity) => {
-    handleAddToCart(productWithQuantity)
+  handleAddToCart(productWithQuantity)
 }
 
 const handleCustomize = (product) => {
-    console.log('Customizing product:', product)
-    selectedProduct.value = product
-    showCustomModal.value = true
+  selectedProduct.value = product
+  showCustomModal.value = true
 }
 
 const handleCloseCustomModal = () => {
-    showCustomModal.value = false
-    selectedProduct.value = null
+  showCustomModal.value = false
+  selectedProduct.value = null
 }
 
 const handleAddCustomToCart = (customizedProduct) => {
-    handleAddToCart(customizedProduct)
+  handleAddToCart(customizedProduct)
 }
 
 const handlePageChange = (page) => {
-    currentPage.value = page
-    // Scroll to top when page changes
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  currentPage.value = page
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-const formatPrice = (price) => {
-    return `₱${Number(price).toFixed(2)}`
-}
-
-// Watch for changes in filtered products to reset pagination
-watch(filteredProducts, (newFilteredProducts) => {
-    // Reset to first page when filtered products change
-    currentPage.value = 1
-    console.log('Filtered products changed:', newFilteredProducts.length, 'items')
+// ============================================================================
+// Watchers
+// ============================================================================
+/**
+ * Reset pagination when filtered products change
+ */
+watch(filteredProducts, () => {
+  currentPage.value = 1
 })
 
-// Component lifecycle
+// ============================================================================
+// Lifecycle Hooks
+// ============================================================================
 onMounted(() => {
-    fetchMenuItems()
+  fetchMenuItems()
+})
+
+onUnmounted(() => {
+  // Cancel any pending requests to prevent memory leaks
+  if (abortController) {
+    abortController.abort()
+  }
 })
 </script>
 

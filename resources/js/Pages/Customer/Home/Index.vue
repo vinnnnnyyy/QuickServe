@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import CustomerLayout from '../../../Layouts/CustomerLayout.vue'
 import FeaturedPicks from '../../../Components/Customer/UI/FeaturedPicks.vue'
@@ -10,156 +10,222 @@ import Welcomebanner from '../../../Components/Customer/Header/WelcomeBanner.vue
 import LoadingSpinner from '../../../Components/Shared/Base/LoadingSpinner.vue'
 import { useCart } from '../../../composables/useCart.js'
 
-// Reactive data 
-const categories = ref([])
-const products = ref([]) // Will be populated from API
+// ============================================================================
+// Constants
+// ============================================================================
+const API_URL = '/api/menu'
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=Menu+Item'
+const DEFAULT_RATING = 4.6
+const DEFAULT_REVIEW_COUNT = 128
+
+// ============================================================================
+// State Management
+// ============================================================================
+// Core state
+const categories = ref([
+  { id: 'all', name: 'All Items', active: true, description: 'All available items', icon: 'fas fa-list' }
+])
+const products = ref([])
 const loading = ref(true)
-
-// Global cart
-const { addToCart } = useCart()
-
-// Helper functions for dynamic categories
-const slugify = (s) => s?.toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || ''
-const categoryIcon = (name) => ({
-  'hot drinks': 'fas fa-mug-hot',
-  'cold drinks': 'fas fa-ice-cream',
-  'specialty coffee': 'fas fa-coffee',
-  'tea & infusions': 'fas fa-leaf',
-  'pastries': 'fas fa-bread-slice',
-  'sandwiches': 'fas fa-utensils',
-  'desserts': 'fas fa-ice-cream'
-}[name?.toLowerCase()] || 'fas fa-coffee')
-const buildCategories = (names) => [
-  { id: 'all', name: 'All Items', active: true, description: 'All available items', icon: 'fas fa-list' },
-  ...names.map(n => ({ id: slugify(n), name: n, active: false, description: '', icon: categoryIcon(n) }))
-]
-
-// Computed property for filtered products based on active category
-const filteredProducts = computed(() => {
-    const activeCategory = categories.value.find(cat => cat.active)
-    if (!activeCategory || activeCategory.id === 'all') {
-        return products.value
-    }
-    return products.value.filter(product => 
-        product.category === activeCategory.id
-    )
-})
-
-// Computed property for featured drinks (for FeaturedPicks component)
-const featuredProducts = computed(() => {
-    const featuredItems = filteredProducts.value.filter(product => 
-        product.badge && product.badge.text === 'Featured'
-    )
-    
-    // If no featured items found, show first 4 items as fallback
-    if (featuredItems.length === 0 && filteredProducts.value.length > 0) {
-        return filteredProducts.value.slice(0, 4)
-    }
-    
-    return featuredItems
-})
-
-// Computed property for popular drinks only (for ProductsSection)
-const popularProducts = computed(() => {
-    const activeCategory = categories.value.find(cat => cat.active)
-    
-    // If "All Items" is selected, show all popular items from all categories
-    let sourceProducts = activeCategory && activeCategory.id === 'all' 
-        ? products.value 
-        : filteredProducts.value
-    
-    const popularItems = sourceProducts.filter(product => 
-        product.tags && product.tags.includes('popular')
-    )
-    
-    // Remove featured badge from popular items to avoid confusion
-    const popularItemsWithoutFeaturedBadge = popularItems.map(product => ({
-        ...product,
-        badge: product.badge?.text === 'Featured' ? null : product.badge
-    }))
-    
-    // Debug logging
-    console.log('=== POPULAR PRODUCTS DEBUG ===')
-    console.log('Active category:', activeCategory?.name)
-    console.log('Source products:', sourceProducts.length)
-    console.log('All products with popular info:', sourceProducts.map(p => ({ 
-        name: p.name, 
-        originalPopular: p.originalPopular, 
-        tags: p.tags,
-        hasPopularTag: p.tags?.includes('popular')
-    })))
-    console.log('Filtered popular products:', popularItems.length)
-    console.log('Popular products:', popularItems.map(p => p.name))
-    
-    // Only return popular items, no fallback to all items
-    return popularItemsWithoutFeaturedBadge
-})
-
-// Fetch products from API
-const fetchProducts = async () => {
-    try {
-        const response = await fetch('/api/menu', {
-            headers: {
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            }
-        })
-        
-        if (response.ok) {
-            const data = await response.json()
-            console.log('=== API DATA DEBUG ===')
-            console.log('Raw API response:', data)
-            console.log('Data length:', Array.isArray(data) ? data.length : 'Not an array')
-            
-            // Map API data to expected format
-            // Ensure data is always an array
-            const items = Array.isArray(data) ? data : [];
-            products.value = items.map(item => ({
-                id: item.id,
-                name: item.name,
-                description: item.description,
-                price: Number(item.price) || 0,
-                image: item.image || 'https://via.placeholder.com/400x300?text=Menu+Item',
-                category: slugify(item.category || 'uncategorized'),
-                rating: Number((4.5 + Math.random() * 0.5).toFixed(1)),
-                reviewCount: Math.floor(Math.random() * 200) + 50,
-                badge: item.featured ? {
-                    text: 'Featured',
-                    color: 'bg-blue-500 text-white'
-                } : item.popular ? {
-                    text: 'Popular', 
-                    color: 'bg-primary-500 text-white'
-                } : null,
-                status: {
-                    text: item.available ? 'Available' : 'Out of Stock',
-                    color: item.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                },
-                tags: [
-                    item.category, 
-                    item.temperature,
-                    ...(item.popular ? ['popular'] : [])
-                ].filter(Boolean),
-                // Debug info
-                originalPopular: item.popular
-            }))
-            
-            // Build dynamic categories from fetched data
-            const uniqueNames = [...new Set(items.map(i => i.category).filter(Boolean))]
-            categories.value = buildCategories(uniqueNames)
-        }
-    } catch (error) {
-        console.error('Error fetching products:', error)
-    } finally {
-        loading.value = false
-    }
-}
+const error = ref(null)
 
 // Modal state
 const showModal = ref(false)
 const showCustomModal = ref(false)
 const selectedProduct = ref(null)
 
-// Event handlers
+// Cart composable
+const { addToCart } = useCart()
+
+// Request cancellation
+let abortController = null
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+/**
+ * Convert a string to a URL-friendly slug
+ */
+const slugify = (str) => {
+  if (!str) return ''
+  return str
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+}
+
+/**
+ * Get FontAwesome icon class for a category
+ */
+const categoryIcon = (name) => {
+  const icons = {
+    'hot drinks': 'fas fa-mug-hot',
+    'cold drinks': 'fas fa-ice-cream',
+    'specialty coffee': 'fas fa-coffee',
+    'tea & infusions': 'fas fa-leaf',
+    'pastries': 'fas fa-bread-slice',
+    'sandwiches': 'fas fa-utensils',
+    'desserts': 'fas fa-ice-cream'
+  }
+  return icons[name?.toLowerCase()] || 'fas fa-coffee'
+}
+
+/**
+ * Build category list with "All Items" prepended
+ */
+const buildCategories = (names) => [
+  { id: 'all', name: 'All Items', active: true, description: 'All available items', icon: 'fas fa-list' },
+  ...names.map(name => ({
+    id: slugify(name),
+    name,
+    active: false,
+    description: '',
+    icon: categoryIcon(name)
+  }))
+]
+
+/**
+ * Transform API menu item to UI product format
+ */
+const toProduct = (item) => {
+  // Extract category name from relation or fallback to string
+  const categoryName = item?.category?.name ?? item?.category ?? 'uncategorized'
+  
+  return {
+    id: item?.id,
+    name: item?.name,
+    description: item?.description ?? '',
+    // Use price_formatted accessor (cents to dollars) or fallback
+    price: Number(item?.price_formatted ?? ((item?.price ?? 0) / 100)),
+    // Use image_url accessor from model for storage symlink
+    image: item?.image_url ?? PLACEHOLDER_IMAGE,
+    category: slugify(categoryName),
+    // Use deterministic defaults instead of random values
+    rating: item?.rating ?? DEFAULT_RATING,
+    reviewCount: item?.review_count ?? DEFAULT_REVIEW_COUNT,
+    badge: item?.featured ? {
+      text: 'Featured',
+      color: 'bg-blue-500 text-white'
+    } : item?.popular ? {
+      text: 'Popular',
+      color: 'bg-primary-500 text-white'
+    } : null,
+    status: {
+      text: item?.available ? 'Available' : 'Out of Stock',
+      color: item?.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+    },
+    tags: [
+      categoryName,
+      item?.temperature,
+      ...(item?.popular ? ['popular'] : [])
+    ].filter(Boolean)
+  }
+}
+
+// ============================================================================
+// Computed Properties
+// ============================================================================
+/**
+ * Filter products by active category
+ */
+const filteredProducts = computed(() => {
+  const activeCategory = categories.value.find(cat => cat.active)
+  if (!activeCategory || activeCategory.id === 'all') {
+    return products.value
+  }
+  return products.value.filter(product => product.category === activeCategory.id)
+})
+
+/**
+ * Get featured products for FeaturedPicks component
+ */
+const featuredProducts = computed(() => {
+  const featuredItems = filteredProducts.value.filter(product =>
+    product.badge?.text === 'Featured'
+  )
+  
+  // If no featured items found, show first 4 items as fallback
+  if (featuredItems.length === 0 && filteredProducts.value.length > 0) {
+    return filteredProducts.value.slice(0, 4)
+  }
+  
+  return featuredItems
+})
+
+/**
+ * Get popular products for ProductsSection component
+ */
+const popularProducts = computed(() => {
+  const activeCategory = categories.value.find(cat => cat.active)
+  
+  // If "All Items" is selected, show all popular items from all categories
+  const sourceProducts = activeCategory?.id === 'all'
+    ? products.value
+    : filteredProducts.value
+  
+  const popularItems = sourceProducts.filter(product =>
+    product.tags?.includes('popular')
+  )
+  
+  // Remove featured badge from popular items to avoid confusion
+  return popularItems.map(product => ({
+    ...product,
+    badge: product.badge?.text === 'Featured' ? null : product.badge
+  }))
+})
+
+// ============================================================================
+// API Functions
+// ============================================================================
+/**
+ * Fetch products from API with request cancellation
+ */
+const fetchProducts = async () => {
+  try {
+    loading.value = true
+    error.value = null
+
+    // Cancel any in-flight request
+    if (abortController) {
+      abortController.abort()
+    }
+    abortController = new AbortController()
+
+    const response = await window.axios.get(API_URL, {
+      headers: { Accept: 'application/json' },
+      signal: abortController.signal
+    })
+
+    const items = Array.isArray(response.data) ? response.data : []
+    products.value = items.map(toProduct)
+
+    // Build dynamic categories from category relation (item.category.name)
+    const uniqueNames = [...new Set(
+      items.map(item => item?.category?.name ?? item?.category).filter(Boolean)
+    )]
+    categories.value = buildCategories(uniqueNames)
+  } catch (err) {
+    // Handle axios errors gracefully
+    if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+      return // Request was cancelled, ignore
+    }
+    
+    const status = err?.response?.status
+    const message = err?.response?.data?.message ?? err?.message ?? 'Failed to load menu'
+    error.value = status ? `${message} (HTTP ${status})` : message
+    products.value = []
+    
+    console.error('Error fetching products:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// ============================================================================
+// Event Handlers
+// ============================================================================
 const handleCategorySelected = (selectedCategory) => {
   categories.value.forEach(cat => {
     cat.active = cat.id === selectedCategory.id
@@ -171,7 +237,6 @@ const handleAddToCart = (product) => {
 }
 
 const handleViewDetails = (product) => {
-  console.log('Viewing details for:', product)
   selectedProduct.value = product
   showModal.value = true
 }
@@ -186,7 +251,6 @@ const handleAddToCartFromModal = (productWithQuantity) => {
 }
 
 const handleCustomize = (product) => {
-  console.log('Customizing product:', product)
   selectedProduct.value = product
   showCustomModal.value = true
 }
@@ -196,11 +260,6 @@ const handleCloseCustomModal = () => {
   selectedProduct.value = null
 }
 
-// Component lifecycle
-onMounted(() => {
-  fetchProducts()
-})
-
 const handleAddCustomToCart = (customizedProduct) => {
   handleAddToCart(customizedProduct)
 }
@@ -208,6 +267,20 @@ const handleAddCustomToCart = (customizedProduct) => {
 const handleViewAll = () => {
   router.visit('/menu')
 }
+
+// ============================================================================
+// Lifecycle Hooks
+// ============================================================================
+onMounted(() => {
+  fetchProducts()
+})
+
+onUnmounted(() => {
+  // Cancel any pending requests to prevent memory leaks
+  if (abortController) {
+    abortController.abort()
+  }
+})
 </script>
 
 <template>
