@@ -21,7 +21,8 @@ const { cartItems, cartTotal, formatPrice, isEmpty } = useCart()
 // Customer form data
 const customerForm = ref({
     nickname: '',
-    notes: ''
+    notes: '',
+    tableNumber: 'Table 1' // Add table number to customer form
 })
 
 // Table information (this could come from props or global state)
@@ -44,7 +45,10 @@ const handleProceedToPayment = () => {
     if (!isFormValid.value) return
     
     const orderData = {
-        customer: customerForm.value,
+        customer: {
+            ...customerForm.value,
+            tableNumber: currentTable.value // Ensure table number is passed
+        },
         paymentMethod: selectedPaymentMethod.value,
         items: cartItems.value,
         total: cartTotal.value
@@ -56,7 +60,8 @@ const handleProceedToPayment = () => {
 const resetForm = () => {
     customerForm.value = {
         nickname: '',
-        notes: ''
+        notes: '',
+        tableNumber: 'Table 1'
     }
     selectedPaymentMethod.value = ''
 }

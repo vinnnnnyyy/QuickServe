@@ -175,6 +175,10 @@ const fetchOrders = async () => {
     
     // Transform API orders to display format
     const transformedOrders = data.map(order => {
+      // Detect if total is in cents (database) or decimal (JSON storage)
+      const isInCents = order.total > 1000 || (order.original_data && order.total > order.items?.reduce((sum, item) => sum + (item.price || 0), 0) * 10)
+      const displayTotal = isInCents ? order.total / 100 : parseFloat(order.total) || 0
+      
       // Handle new checkout format orders
       if (order.original_data) {
         return {
@@ -192,7 +196,7 @@ const fetchOrders = async () => {
               `${item.name}${item.quantity > 1 ? ` (${item.quantity})` : ''}`
             ).join(', ') || 'No items'
           },
-          total: parseFloat(order.total) || 0,
+          total: displayTotal,
           tax: 0, // Tax not included in checkout orders
           payment: {
             status: order.payment_method === 'cash' ? 'Pay Cash' : 'Paid (GCash)',
@@ -226,7 +230,7 @@ const fetchOrders = async () => {
               `${item.name}${item.quantity > 1 ? ` (${item.quantity})` : ''}`
             ).join(', ') || 'No items'
           },
-          total: parseFloat(order.total) || 0,
+          total: displayTotal,
           tax: 0,
           payment: {
             status: 'Manual Entry',
@@ -265,7 +269,10 @@ const capitalizeStatus = (status) => {
     'ready': 'Ready',
     'served': 'Served',
     'completed': 'Completed',
-    'cancelled': 'Cancelled'
+    'cancelled': 'Cancelled',
+    'paid': 'Received', // Map paid status to Received for display
+    'pending': 'Received', // Map pending to Received
+    'payment_failed': 'Cancelled' // Map failed payments to cancelled
   }
   return statusMap[status] || status
 }
@@ -279,7 +286,10 @@ const getStatusColor = (status) => {
     'ready': 'purple',
     'served': 'green',
     'completed': 'green',
-    'cancelled': 'red'
+    'cancelled': 'red',
+    'paid': 'orange', // Paid orders show as orange (new/received)
+    'pending': 'orange',
+    'payment_failed': 'red'
   }
   return colorMap[status] || 'gray'
 }
