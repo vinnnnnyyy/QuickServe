@@ -114,26 +114,23 @@ const submitForm = async () => {
       generateSKU();
     }
 
-    // Prepare form data
-    const inventoryData = {
-      ...form.value,
-      stock: parseInt(form.value.stock),
+    router.post('/admin/inventory', {
+      name: form.value.name,
+      description: form.value.description || '',
+      category: form.value.category,
+      stock: parseInt(form.value.stock, 10),
       unitPrice: parseFloat(form.value.unitPrice),
-      minStockLevel: parseInt(form.value.minStockLevel) || 0,
-      totalValue: parseFloat(totalValue.value),
-      status: stockStatus.value.text,
-      statusColor: stockStatus.value.color,
-      createdAt: new Date().toISOString()
-    };
-
-    // In a real application, you would send this to your backend
-    console.log('Inventory Item Data:', inventoryData);
-    
-    // For now, we'll simulate a successful submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Navigate back to inventory list
-    router.get('/admin/inventory');
+      minStockLevel: form.value.minStockLevel ? parseInt(form.value.minStockLevel, 10) : 0,
+      supplier: form.value.supplier || '',
+      sku: form.value.sku || '',
+      location: form.value.location || '',
+      notes: form.value.notes || ''
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        localStorage.removeItem('inventoryDraft');
+      }
+    });
     
   } catch (error) {
     console.error('Error creating inventory item:', error);

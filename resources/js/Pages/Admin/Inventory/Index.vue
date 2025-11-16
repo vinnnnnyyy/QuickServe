@@ -3,13 +3,41 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Pagination from '@/Components/Admin/UI/Pagination.vue';
 import CardWrapper from '@/Components/Admin/UI/CardWrapper.vue';
 import TableActionsDropdown from '@/Components/Admin/UI/TableActionsDropdown.vue';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
+
+// Props from backend (InventoryController@index)
+const props = defineProps({
+  inventory: {
+    type: Array,
+    default: () => []
+  },
+  summary: {
+    type: Object,
+    default: () => ({
+      totalItems: 0,
+      lowStockCount: 0,
+      totalValue: 0
+    })
+  }
+});
 
 // Pagination logic for inventory
 const currentPage = ref(1);
 const itemsPerPage = ref(10); // 10 items per page for table view
-const totalInventoryItems = ref(247); // Simulate total items (this would come from your backend)
+const totalInventoryItems = ref(props.summary.totalItems || props.inventory.length || 0);
+
+// Inventory items from backend
+const inventoryItems = ref(props.inventory || []);
+
+watch(
+  () => props.inventory,
+  (newInventory) => {
+    inventoryItems.value = newInventory || [];
+    totalInventoryItems.value = props.summary.totalItems || inventoryItems.value.length || 0;
+  },
+  { immediate: true }
+);
 
 // Handle page change
 const handlePageChange = (page) => {
@@ -17,32 +45,6 @@ const handlePageChange = (page) => {
   // In a real app, you would fetch data for the new page here
   console.log('Inventory page changed to:', page);
 };
-
-// Sample inventory data
-const inventoryItems = ref([
-  {
-    id: 1,
-    name: 'Paper Cups (16oz)',
-    description: 'Disposable cups',
-    category: 'Supplies',
-    stock: 450,
-    unitPrice: 0.15,
-    totalValue: 67.50,
-    status: 'In Stock',
-    statusColor: 'text-green-600 dark:text-green-400'
-  },
-  {
-    id: 2,
-    name: 'Coffee Beans (Arabica)',
-    description: 'Premium coffee beans',
-    category: 'Ingredients',
-    stock: 25,
-    unitPrice: 12.50,
-    totalValue: 312.50,
-    status: 'Low Stock',
-    statusColor: 'text-yellow-600 dark:text-yellow-400'
-  }
-]);
 
 // Define inventory actions
 const getInventoryActions = (item) => {
@@ -77,16 +79,48 @@ const onInventoryAction = ({ key, row }) => {
 
 // Restock item
 const restockItem = (itemId) => {
-  console.log('Restock item:', itemId);
-  // TODO: Implement restock functionality
+  const item = inventoryItems.value.find((i) => i.id === itemId);
+  if (!item) return;
+
+  const amount = prompt('Enter quantity to add to stock:', '10');
+  if (!amount) return;
+
+  const quantity = parseInt(amount, 10);
+  if (Number.isNaN(quantity) || quantity <= 0) {
+    alert('Please enter a valid positive number.');
+    return;
+  }
+
+  const newStock = item.stock + quantity;
+
+  router.put(`/api/inventory/${itemId}`, {
+    stock: newStock
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      router.reload({ only: ['inventory', 'summary'] });
+    },
+    onError: () => {
+      alert('Failed to restock item. Please try again.');
+    }
+  });
 };
 
 // Delete item
 const deleteItem = (itemId) => {
-  if (confirm('Are you sure you want to delete this inventory item?')) {
-    console.log('Delete item:', itemId);
-    // TODO: Implement delete functionality
+  if (!confirm('Are you sure you want to delete this inventory item?')) {
+    return;
   }
+
+  router.delete(`/admin/inventory/${itemId}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      router.reload({ only: ['inventory', 'summary'] });
+    },
+    onError: () => {
+      alert('Failed to delete item. Please try again.');
+    }
+  });
 };
 </script>
 
@@ -122,7 +156,7 @@ const deleteItem = (itemId) => {
           </div>
           <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">Active</span>
         </div>
-        <p class="text-3xl font-bold text-black dark:text-white mb-1">247</p>
+        <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ summary.totalItems ?? 0 }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Total Items</p>
       </CardWrapper>
       
@@ -133,7 +167,7 @@ const deleteItem = (itemId) => {
           </div>
           <span class="text-xs font-medium px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400">Critical</span>
         </div>
-        <p class="text-3xl font-bold text-black dark:text-white mb-1">12</p>
+        <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ summary.lowStockCount ?? 0 }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Low Stock</p>
       </CardWrapper>
       
@@ -144,7 +178,7 @@ const deleteItem = (itemId) => {
           </div>
           <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">This month</span>
         </div>
-        <p class="text-3xl font-bold text-black dark:text-white mb-1">₱4,567</p>
+        <p class="text-3xl font-bold text-black dark:text-white mb-1">₱{{ (summary.totalValue ?? 0).toFixed(2) }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Inventory Value</p>
       </CardWrapper>
     </div>
@@ -152,7 +186,7 @@ const deleteItem = (itemId) => {
     <!-- Filter Tabs -->
     <div class="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
       <button class="px-4 py-2 rounded-full bg-primary text-white whitespace-nowrap font-medium transition-all">
-        All Items <span class="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-xs">247</span>
+        All Items <span class="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-xs">{{ summary.totalItems ?? 0 }}</span>
       </button>
       <button class="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 whitespace-nowrap transition-all">
         Beverages <span class="ml-1 text-gray-500">89</span>

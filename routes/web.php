@@ -1,6 +1,9 @@
 <?php
 use App\Http\Controllers\Web\MenuItemController;
+use App\Http\Controllers\Web\TableController;
+use App\Http\Controllers\Web\InventoryController;
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Web\OrdersController;
 use App\Services\JsonStorageService;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -73,22 +76,9 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 
     // Orders Management
     Route::prefix('orders')->name('orders.')->group(function () {
-        Route::get('/', function (JsonStorageService $storage) {
-            return Inertia::render('Admin/Orders/Index', [
-                'orders' => $storage->get('orders'),
-            ]);
-        })->name('index');
-
-        Route::get('/add', function () {
-            return Inertia::render('Admin/Orders/Create');
-        })->name('add');
-
-        Route::get('/{id}/edit', function ($id, JsonStorageService $storage) {
-            return Inertia::render('Admin/Orders/Edit', [
-                'order' => $storage->find('orders', (int)$id),
-                'id' => $id,
-            ]);
-        })->name('edit');
+        Route::get('/', [OrdersController::class, 'index'])->name('index');
+        Route::get('/add', [OrdersController::class, 'create'])->name('add');
+        Route::get('/{id}/edit', [OrdersController::class, 'edit'])->name('edit');
     });
 
     // Menu Management
@@ -110,15 +100,12 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 
     // Inventory Management
     Route::prefix('inventory')->name('inventory.')->group(function () {
-        Route::get('/', function (JsonStorageService $storage) {
-            return Inertia::render('Admin/Inventory/Index', [
-                'inventory' => $storage->get('inventory'),
-            ]);
-        })->name('index');
-
-        Route::get('/add', function () {
-            return Inertia::render('Admin/Inventory/Create');
-        })->name('add');
+        Route::get('/', [InventoryController::class, 'index'])->name('index');
+        Route::get('/add', [InventoryController::class, 'create'])->name('add');
+        Route::post('/', [InventoryController::class, 'store'])->name('store');
+        Route::get('/{id}/edit', [InventoryController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [InventoryController::class, 'update'])->name('update');
+        Route::delete('/{id}', [InventoryController::class, 'destroy'])->name('destroy');
     });
 
     // Staff Management
@@ -136,22 +123,12 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 
     // Tables Management
     Route::prefix('tables')->name('tables.')->group(function () {
-        Route::get('/', function (JsonStorageService $storage) {
-            return Inertia::render('Admin/Tables/Index', [
-                'tables' => $storage->get('tables'),
-            ]);
-        })->name('index');
-
-        Route::get('/add', function () {
-            return Inertia::render('Admin/Tables/Create');
-        })->name('add');
-
-        Route::get('/{id}/edit', function ($id, JsonStorageService $storage) {
-            return Inertia::render('Admin/Tables/Edit', [
-                'table' => $storage->find('tables', (int)$id),
-                'id' => $id,
-            ]);
-        })->name('edit');
+        Route::get('/', [TableController::class, 'index'])->name('index');
+        Route::get('/add', [TableController::class, 'create'])->name('add');
+        Route::post('/', [TableController::class, 'store'])->name('store');
+        Route::get('/{id}/edit', [TableController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [TableController::class, 'update'])->name('update');
+        Route::delete('/{id}', [TableController::class, 'destroy'])->name('destroy');
     });
 
     // Barista

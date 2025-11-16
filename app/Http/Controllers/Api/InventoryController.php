@@ -3,131 +3,124 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\JsonStorageService;
+use App\Models\InventoryItem;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class InventoryController extends Controller
 {
-    private JsonStorageService $storage;
-
-    public function __construct(JsonStorageService $storage)
-    {
-        $this->storage = $storage;
-        $this->initializeSampleData();
-    }
-
-    private function initializeSampleData(): void
-    {
-        $inventory = $this->storage->get('inventory');
-        
-        if ($inventory->isEmpty()) {
-            $sampleInventory = [
-                [
-                    'id' => 1,
-                    'item_name' => 'Coffee Beans (Arabica)',
-                    'category' => 'Beverages',
-                    'current_stock' => 25,
-                    'unit' => 'lbs',
-                    'min_stock' => 10,
-                    'max_stock' => 50,
-                    'cost_per_unit' => 12.50,
-                    'supplier' => 'Premium Coffee Co.',
-                    'status' => 'in_stock',
-                    'last_restocked' => '2024-01-10',
-                    'created_at' => now()->toISOString(),
-                    'updated_at' => now()->toISOString()
-                ],
-                [
-                    'id' => 2,
-                    'item_name' => 'Whole Milk',
-                    'category' => 'Dairy',
-                    'current_stock' => 8,
-                    'unit' => 'gallons',
-                    'min_stock' => 5,
-                    'max_stock' => 20,
-                    'cost_per_unit' => 4.25,
-                    'supplier' => 'Local Dairy Farm',
-                    'status' => 'low_stock',
-                    'last_restocked' => '2024-01-08',
-                    'created_at' => now()->toISOString(),
-                    'updated_at' => now()->toISOString()
-                ]
-            ];
-
-            $this->storage->put('inventory', collect($sampleInventory));
-        }
-    }
-
     public function index(): JsonResponse
     {
-        $inventory = $this->storage->get('inventory');
-        return response()->json($inventory);
+        $items = InventoryItem::orderBy('name')->get();
+
+        return response()->json($items);
     }
 
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
-            'item_name' => 'required|string|max:255',
-            'category' => 'required|string',
-            'current_stock' => 'required|numeric|min:0',
-            'unit' => 'required|string',
-            'min_stock' => 'required|numeric|min:0',
-            'max_stock' => 'required|numeric|min:0',
-            'cost_per_unit' => 'required|numeric|min:0',
-            'supplier' => 'nullable|string',
-            'last_restocked' => 'nullable|date'
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category' => 'required|string|max:100',
+            'stock' => 'required|integer|min:0',
+            'unit_price' => 'required|numeric|min:0',
+            'min_stock_level' => 'nullable|integer|min:0',
+            'supplier' => 'nullable|string|max:255',
+            'sku' => 'nullable|string|max:100',
+            'location' => 'nullable|string|max:100',
+            'notes' => 'nullable|string',
         ]);
 
-        $data = $request->all();
-        $data['status'] = $data['current_stock'] <= $data['min_stock'] ? 'low_stock' : 'in_stock';
+        $minStock = $validated['min_stock_level'] ?? 0;
+        $stock = $validated['stock'];
+        $unitPrice = (float) $validated['unit_price'];
 
-        $item = $this->storage->create('inventory', $data);
-        
+        $status = $stock === 0 ? 'Out of Stock' : ($stock <= $minStock ? 'Low Stock' : 'In Stock');
+        $statusColor = $status === 'Out of Stock'
+            ? 'text-red-600 dark:text-red-400'
+            : ($status === 'Low Stock' ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400');
+
+        $item = InventoryItem::create([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'category' => $validated['category'],
+            'stock' => $stock,
+            'unit_price' => $unitPrice,
+            'min_stock_level' => $minStock,
+            'supplier' => $validated['supplier'] ?? null,
+            'sku' => $validated['sku'] ?? null,
+            'location' => $validated['location'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'status' => $status,
+            'status_color' => $statusColor,
+            'total_value' => $stock * $unitPrice,
+        ]);
+
         return response()->json($item, 201);
     }
 
     public function show(int $id): JsonResponse
     {
-        $item = $this->storage->find('inventory', $id);
-        
+        $item = InventoryItem::find($id);
+
         if (!$item) {
             return response()->json(['message' => 'Inventory item not found'], 404);
         }
-        
+
         return response()->json($item);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $data = $request->all();
-        
-        // Update status based on stock levels if current_stock is being updated
-        if (isset($data['current_stock'])) {
-            $item = $this->storage->find('inventory', $id);
-            if ($item) {
-                $minStock = $data['min_stock'] ?? $item['min_stock'];
-                $data['status'] = $data['current_stock'] <= $minStock ? 'low_stock' : 'in_stock';
-            }
-        }
+        $item = InventoryItem::find($id);
 
-        $item = $this->storage->update('inventory', $id, $data);
-        
         if (!$item) {
             return response()->json(['message' => 'Inventory item not found'], 404);
         }
-        
+
+        $data = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'sometimes|nullable|string',
+            'category' => 'sometimes|string|max:100',
+            'stock' => 'sometimes|integer|min:0',
+            'unit_price' => 'sometimes|numeric|min:0',
+            'min_stock_level' => 'sometimes|integer|min:0',
+            'supplier' => 'sometimes|nullable|string|max:255',
+            'sku' => 'sometimes|nullable|string|max:100',
+            'location' => 'sometimes|nullable|string|max:100',
+            'notes' => 'sometimes|nullable|string',
+        ]);
+
+        $item->fill($data);
+
+        $stock = $data['stock'] ?? $item->stock;
+        $minStock = $data['min_stock_level'] ?? $item->min_stock_level;
+        $unitPrice = $data['unit_price'] ?? $item->unit_price;
+
+        $status = $stock === 0 ? 'Out of Stock' : ($stock <= $minStock ? 'Low Stock' : 'In Stock');
+        $statusColor = $status === 'Out of Stock'
+            ? 'text-red-600 dark:text-red-400'
+            : ($status === 'Low Stock' ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400');
+
+        $item->status = $status;
+        $item->status_color = $statusColor;
+        $item->total_value = $stock * $unitPrice;
+
+        $item->save();
+
         return response()->json($item);
     }
 
     public function destroy(int $id): JsonResponse
     {
-        $deleted = $this->storage->delete('inventory', $id);
-        
-        if (!$deleted) {
+        $item = InventoryItem::find($id);
+
+        if (!$item) {
             return response()->json(['message' => 'Inventory item not found'], 404);
         }
-        
+
+        $item->delete();
+
         return response()->json(['message' => 'Inventory item deleted successfully']);
     }
 }
