@@ -21,10 +21,10 @@ const statusClasses = computed(() => getStatusClasses(props.status))
 
 const sizeClasses = computed(() => {
     const sizes = {
-        xs: 'px-2 py-1 text-xs',
-        sm: 'px-2.5 py-1 text-xs',
-        md: 'px-3 py-1.5 text-sm',
-        lg: 'px-4 py-2 text-base font-semibold'
+        xs: 'text-xs',
+        sm: 'text-xs',
+        md: 'text-sm',
+        lg: 'text-base font-semibold'
     }
     return sizes[props.size]
 })
@@ -32,7 +32,7 @@ const sizeClasses = computed(() => {
 
 <template>
     <span 
-        class="inline-flex items-center rounded-full font-medium border"
+        class="inline-flex items-center font-medium"
         :class="[statusClasses, sizeClasses]"
     >
         <div 

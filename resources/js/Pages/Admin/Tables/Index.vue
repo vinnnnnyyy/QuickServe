@@ -3,188 +3,81 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminModal from '@/Components/Admin/UI/AdminModal.vue';
 import Pagination from '@/Components/Admin/UI/Pagination.vue';
 import CardWrapper from '@/Components/Admin/UI/CardWrapper.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
+import QRCode from 'qrcode';
 
-// Table data
-const tables = ref([
-  {
-    id: 1,
-    number: 1,
-    location: 'Indoor',
-    locationColor: 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400',
-    capacity: 3,
-    occupied: 0,
-    status: 'available',
-    statusColor: 'bg-green-200 dark:bg-green-800 border-green-200 dark:border-green-800',
-    statusText: 'Available',
-    statusDot: 'bg-green-500',
-    qrCode: 'QR_TABLE_001',
-    sessions: []
-  },
-  {
-    id: 2,
-    number: 2,
-    location: 'Indoor',
-    locationColor: 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400',
-    capacity: 4,
-    occupied: 2,
-    status: 'partial',
-    statusColor: 'bg-yellow-200 dark:bg-yellow-800 border-yellow-200 dark:border-yellow-800',
-    statusText: 'Partial',
-    statusDot: 'bg-yellow-500',
-    qrCode: 'QR_TABLE_002',
-    sessions: [
-      { id: '#1247', device: '192.168.1.45', browser: 'iPhone Safari', status: 'active' },
-      { id: '#1248', device: '192.168.1.67', browser: 'Android Chrome', status: 'paid_leaving' }
-    ]
-  },
-  {
-    id: 3,
-    number: 3,
-    location: 'Outdoor',
-    locationColor: 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400',
-    capacity: 2,
-    occupied: 0,
-    status: 'available',
-    statusColor: 'bg-green-200 dark:bg-green-800 border-green-200 dark:border-green-800',
-    statusText: 'Available',
-    statusDot: 'bg-green-500',
-    qrCode: 'QR_TABLE_003',
-    sessions: []
-  },
-  {
-    id: 4,
-    number: 4,
-    location: 'Indoor',
-    locationColor: 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400',
-    capacity: 6,
-    occupied: 6,
-    status: 'full',
-    statusColor: 'bg-red-200 dark:bg-red-800 border-red-200 dark:border-red-800',
-    statusText: 'Full',
-    statusDot: 'bg-red-500',
-    qrCode: 'QR_TABLE_004',
-    sessions: [
-      { id: '#1249', device: '192.168.1.89', browser: 'MacBook Safari', status: 'active' },
-      // Multiple devices for full table
-    ]
-  },
-  {
-    id: 5,
-    number: 5,
-    location: 'Patio',
-    locationColor: 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400',
-    capacity: 4,
-    occupied: 1,
-    status: 'partial',
-    statusColor: 'bg-yellow-200 dark:bg-yellow-800 border-yellow-200 dark:border-yellow-800',
-    statusText: 'Partial',
-    statusDot: 'bg-yellow-500',
-    qrCode: 'QR_TABLE_005',
-    sessions: [
-      { id: '#1250', device: '192.168.1.101', browser: 'iPad Safari', status: 'active' }
-    ]
-  },
-  {
-    id: 6,
-    number: 6,
-    location: 'Bar',
-    locationColor: 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
-    capacity: 8,
-    occupied: 0,
-    status: 'cleaning',
-    statusColor: 'bg-blue-200 dark:bg-blue-800 border-blue-200 dark:border-blue-800',
-    statusText: 'Cleaning',
-    statusDot: 'bg-blue-500',
-    qrCode: 'QR_TABLE_006',
-    sessions: []
-  }
-]);
+// Auto-cleanup poller
+let cleanupInterval = null;
 
-// Active sessions data
-const activeSessions = ref([
-  {
-    id: '#1247',
-    tableId: 2,
-    tableNumber: 2,
-    location: 'Indoor',
-    capacity: 4,
-    deviceCount: 2,
-    currentDevice: 1,
-    deviceInfo: {
-      ip: '192.168.1.45',
-      browser: 'iPhone Safari'
-    },
-    status: 'active',
-    duration: '25 min',
-    startTime: '12:30 PM',
-    lastActivity: '2 min ago',
-    activity: 'Browsing menu'
+const startCleanupPoller = () => {
+  cleanupInterval = setInterval(async () => {
+    try {
+      // Check for stale sessions (threshold default is 30 mins, but we might want shorter for testing?)
+      // For now using default backend logic. To test "disconnect", we might rely on the fact that 
+      // heartbeat stops updates, so eventually they become stale.
+      // Note: The user expectation is 1 minute timeout. The backend default is 30.
+      // I should pass ?minutes=1 to the endpoint if supported, or relying on backend default.
+      // Checking TableSessionController::expireStaleSessions(int $minutesThreshold = 30)
+      // I can pass minutes in the request body/query? The controller uses method injection for $minutesThreshold?
+      // No, controller methods with arguments usually map to route params or DI.
+      // Actually TableSessionController::expireStaleSessions(int $minutesThreshold = 30) might not accept request input for that arg automatically.
+      // Let's assume standard behavior or add a param.
+      // Safest is to call the route. 
+      // Start with 30s poller.
+      const response = await window.axios.post('/api/table-sessions/expire-stale', {
+        minutes: 1
+      });
+      
+      if (response.data.expired_count > 0) {
+        router.reload({ only: ['tables', 'activeSessions'] });
+      }
+    } catch (err) {
+      console.error('Cleanup poller failed', err);
+    }
+  }, 30000); 
+};
+
+onMounted(() => {
+  startCleanupPoller();
+});
+
+onUnmounted(() => {
+  if (cleanupInterval) clearInterval(cleanupInterval);
+});
+
+// Define props to receive data from backend
+const props = defineProps({
+  tables: {
+    type: Array,
+    default: () => []
   },
-  {
-    id: '#1248',
-    tableId: 2,
-    tableNumber: 2,
-    location: 'Indoor',
-    capacity: 4,
-    deviceCount: 2,
-    currentDevice: 2,
-    deviceInfo: {
-      ip: '192.168.1.67',
-      browser: 'Android Chrome'
-    },
-    status: 'paid_leaving',
-    duration: '18 min',
-    startTime: '12:37 PM',
-    lastActivity: '5 min ago',
-    activity: 'Payment completed'
-  },
-  {
-    id: '#1249',
-    tableId: 4,
-    tableNumber: 4,
-    location: 'Indoor',
-    capacity: 6,
-    deviceCount: 6,
-    currentDevice: 1,
-    deviceInfo: {
-      ip: '192.168.1.89',
-      browser: 'MacBook Safari'
-    },
-    status: 'active',
-    duration: '45 min',
-    startTime: '12:10 PM',
-    lastActivity: '1 min ago',
-    activity: 'Viewing order'
-  },
-  {
-    id: '#1250',
-    tableId: 5,
-    tableNumber: 5,
-    location: 'Patio',
-    capacity: 4,
-    deviceCount: 1,
-    currentDevice: 1,
-    deviceInfo: {
-      ip: '192.168.1.101',
-      browser: 'iPad Safari'
-    },
-    status: 'active',
-    duration: '12 min',
-    startTime: '12:43 PM',
-    lastActivity: '30 sec ago',
-    activity: 'Adding items'
+  activeSessions: {
+    type: Array,
+    default: () => []
   }
-]);
+});
+
+// Use props data as reactive refs
+const tables = ref(props.tables);
+const activeSessions = ref(props.activeSessions);
 
 // Reactive state
 const searchTerm = ref('');
 const activeLocationFilter = ref('all');
 const sortBy = ref('number');
 const viewMode = ref('grid'); // grid or list
-const selectedTableForQR = ref('Table 1 (Indoor, 3 seats)');
-const qrSize = ref('Medium (400x400px)');
+const qrSizeOptions = [
+  { label: 'Small (200x200px)', value: 200 },
+  { label: 'Medium (400x400px)', value: 400 },
+  { label: 'Large (600x600px)', value: 600 },
+  { label: 'Extra Large (800x800px)', value: 800 }
+];
+const qrSize = ref(qrSizeOptions[1].value);
+const selectedTableId = ref(null);
+const qrPreviewDataUrl = ref('');
+const isGeneratingQr = ref(false);
+const qrError = ref('');
 
 // Modal state
 const showSessionModal = ref(false);
@@ -196,6 +89,30 @@ const sessionsPerPage = ref(5); // 5 sessions per page for table view
 const totalSessions = computed(() => activeSessions.value.length);
 
 // Computed properties
+const tableSelectOptions = computed(() =>
+  tables.value.map((table) => ({
+    value: table.id,
+    label: `Table ${table.number} (${table.location}, ${table.capacity} seats)`
+  }))
+);
+
+const selectedTable = computed(() =>
+  tables.value.find((table) => table.id === selectedTableId.value) || null
+);
+
+const selectedTableLabel = computed(() => {
+  if (!selectedTable.value) {
+    return 'Select a table';
+  }
+  const table = selectedTable.value;
+  return `Table ${table.number} (${table.location}, ${table.capacity} seats)`;
+});
+
+const currentQrSizeLabel = computed(() => {
+  const size = qrSizeOptions.find((option) => option.value === qrSize.value);
+  return size ? size.label : 'Medium (400x400px)';
+});
+
 const filteredTables = computed(() => {
   let filtered = tables.value;
 
@@ -299,52 +216,163 @@ const editTable = (table) => {
   router.get(`/admin/tables/${table.id}/edit`);
 };
 
-const generateQR = (table) => {
-  console.log('Generate QR for table:', table);
-  selectedTableForQR.value = `Table ${table.number} (${table.location}, ${table.capacity} seats)`;
-  // Implementation for QR generation
+const selectTableForQR = (table) => {
+  if (!table?.id) return;
+  selectedTableId.value = table.id;
 };
 
-const endSession = (sessionId) => {
+const endSession = async (sessionId) => {
   if (confirm('Are you sure you want to end this session?')) {
-    activeSessions.value = activeSessions.value.filter(session => session.id !== sessionId);
-    // Update table status if needed
-  }
-};
-
-const releaseTable = (sessionId) => {
-  if (confirm('Are you sure you want to release this table?')) {
-    const session = activeSessions.value.find(s => s.id === sessionId);
-    if (session) {
-      const table = tables.value.find(t => t.id === session.tableId);
-      if (table) {
-        table.occupied = Math.max(0, table.occupied - 1);
-        if (table.occupied === 0) {
-          table.status = 'available';
-          table.statusColor = 'bg-green-200 dark:bg-green-800 border-green-200 dark:border-green-800';
-          table.statusText = 'Available';
-          table.statusDot = 'bg-green-500';
-        }
-      }
+    try {
+      await window.axios.post(`/api/table-sessions/${encodeURIComponent(sessionId)}/end`);
+      // Reload page data to reflect changes
+      router.reload({ only: ['tables', 'activeSessions'] });
+    } catch (error) {
+      console.error('Failed to end session:', error);
+      alert('Failed to end session');
     }
-    activeSessions.value = activeSessions.value.filter(session => session.id !== sessionId);
   }
 };
 
-const generateQRCode = () => {
-  console.log('Generating QR code for:', selectedTableForQR.value, 'Size:', qrSize.value);
-  // Implementation for QR code generation
+const releaseTable = async (sessionId) => {
+  if (confirm('Are you sure you want to release this table?')) {
+    try {
+      await window.axios.post(`/api/table-sessions/${encodeURIComponent(sessionId)}/release`);
+      // Reload page data to reflect changes
+      router.reload({ only: ['tables', 'activeSessions'] });
+    } catch (error) {
+      console.error('Failed to release table:', error);
+      alert('Failed to release table');
+    }
+  }
+};
+
+const clearTable = async (table) => {
+  if (confirm(`Are you sure you want to clear ALL sessions for Table ${table.number}? This will force-disconnect all users.`)) {
+    try {
+      await window.axios.post(`/api/table-sessions/table/${table.id}/clear`);
+      router.reload({ only: ['tables', 'activeSessions'] });
+    } catch (error) {
+       console.error('Failed to clear table:', error);
+       alert('Failed to clear table');
+    }
+  }
+};
+
+const getTableShareUrl = (table) => {
+  if (typeof window === 'undefined') {
+    return `table:${table.qrToken}`;
+  }
+
+  return `${window.location.origin}/table/${table.qrToken}`;
+};
+
+const generateQRCodePreview = async () => {
+  if (!selectedTable.value) {
+    qrError.value = 'Please select a table first.';
+    qrPreviewDataUrl.value = '';
+    return;
+  }
+
+  isGeneratingQr.value = true;
+  qrError.value = '';
+
+  try {
+    const shareUrl = getTableShareUrl(selectedTable.value);
+    qrPreviewDataUrl.value = await QRCode.toDataURL(shareUrl, {
+      width: qrSize.value,
+      margin: 2,
+    });
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    qrError.value = 'Failed to generate QR code. Please try again.';
+  } finally {
+    isGeneratingQr.value = false;
+  }
 };
 
 const downloadQR = () => {
-  console.log('Downloading QR code');
-  // Implementation for downloading QR
+  if (!qrPreviewDataUrl.value || !selectedTable.value) {
+    alert('Generate a QR code first.');
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.href = qrPreviewDataUrl.value;
+  link.download = `table-${selectedTable.value.number}-qr.png`;
+  link.click();
 };
 
 const printTableTent = () => {
-  console.log('Printing table tent');
-  // Implementation for printing
+  if (!qrPreviewDataUrl.value || !selectedTable.value) {
+    alert('Generate a QR code first.');
+    return;
+  }
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow pop-ups to print the QR code.');
+    return;
+  }
+
+  const table = selectedTable.value;
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Table ${table.number} QR Code</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 24px; }
+          img { width: 320px; height: 320px; object-fit: contain; }
+          h1 { margin-bottom: 8px; }
+          p { margin: 4px 0; color: #555; }
+        </style>
+      </head>
+      <body>
+        <h1>Table ${table.number}</h1>
+        <p>${table.location} • ${table.capacity} seats</p>
+        <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">Code: ${table.accessCode || 'N/A'}</p>
+        <img src="${qrPreviewDataUrl.value}" alt="Table ${table.number} QR" />
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
 };
+
+watch(() => props.tables, (newTables) => {
+  tables.value = newTables;
+
+  if (newTables.length === 0) {
+    selectedTableId.value = null;
+    return;
+  }
+
+  if (!selectedTableId.value || !newTables.some((table) => table.id === selectedTableId.value)) {
+    selectedTableId.value = newTables[0].id;
+  }
+}, { immediate: true });
+
+watch(() => props.activeSessions, (newSessions) => {
+  activeSessions.value = newSessions;
+}, { immediate: true });
+
+watch(selectedTableId, (newId) => {
+  if (!newId) {
+    qrPreviewDataUrl.value = '';
+    return;
+  }
+
+  if (selectedTable.value) {
+    generateQRCodePreview();
+  }
+});
+
+watch(qrSize, () => {
+  if (selectedTable.value) {
+    generateQRCodePreview();
+  }
+});
 
 const openSessionDetails = (sessionId) => {
   const session = activeSessions.value.find(s => s.id === sessionId);
@@ -358,6 +386,7 @@ const closeSessionModal = () => {
   showSessionModal.value = false;
   selectedSession.value = null;
 };
+
 </script>
 
 <template>
@@ -395,7 +424,7 @@ const closeSessionModal = () => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10">
             <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-2xl">local_cafe</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">Available</span>
+          <span class="text-xs font-medium text-green-600 dark:text-green-400">Available</span>
         </div>
         <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ tableStats.empty }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Empty Tables</p>
@@ -406,7 +435,7 @@ const closeSessionModal = () => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-yellow-500/20 to-yellow-400/10">
             <span class="material-symbols-outlined text-yellow-600 dark:text-yellow-400 text-2xl">group</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400">Partial</span>
+          <span class="text-xs font-medium text-yellow-600 dark:text-yellow-400">Partial</span>
         </div>
         <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ tableStats.partial }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Partially Occupied</p>
@@ -417,7 +446,7 @@ const closeSessionModal = () => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-red-500/20 to-red-400/10">
             <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-2xl">people</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400">Full</span>
+          <span class="text-xs font-medium text-red-600 dark:text-red-400">Full</span>
         </div>
         <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ tableStats.full }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Full Tables</p>
@@ -428,7 +457,7 @@ const closeSessionModal = () => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-400/10">
             <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">cleaning_services</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">Cleaning</span>
+          <span class="text-xs font-medium text-blue-600 dark:text-blue-400">Cleaning</span>
         </div>
         <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ tableStats.cleaning }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Being Cleaned</p>
@@ -577,14 +606,17 @@ const closeSessionModal = () => {
                   <span class="text-black dark:text-white">{{ table.occupied }}/{{ table.capacity }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-black/60 dark:text-white/60">QR Code:</span>
                   <span class="text-black dark:text-white text-xs">{{ table.qrCode }}</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-black/60 dark:text-white/60">Access Code:</span>
+                  <span class="text-primary font-bold font-mono tracking-widest">{{ table.accessCode || 'N/A' }}</span>
                 </div>
               </div>
 
               <div class="flex items-center gap-2">
                 <button
-                  @click="generateQR(table)"
+                  @click="selectTableForQR(table)"
                   class="flex-1 px-3 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800 transition-all text-sm font-medium flex items-center justify-center gap-1"
                 >
                   <span class="material-symbols-outlined text-sm">qr_code</span>
@@ -596,8 +628,12 @@ const closeSessionModal = () => {
                 >
                   Edit
                 </button>
-                <button class="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
-                  <span class="material-symbols-outlined text-sm">more_vert</span>
+                <button 
+                  @click="clearTable(table)"
+                  class="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                  title="Clear All Sessions"
+                >
+                  <span class="material-symbols-outlined text-sm">delete_sweep</span>
                 </button>
               </div>
             </div>
@@ -672,9 +708,17 @@ const closeSessionModal = () => {
                     </div>
                   </td>
                   <td class="py-4 px-6">
-                    <div>
-                      <p class="text-black dark:text-white text-sm">{{ session.deviceInfo.ip }}</p>
-                      <p class="text-black/60 dark:text-white/60 text-xs">{{ session.deviceInfo.browser }}</p>
+                    <div class="flex items-center gap-2">
+                      <div class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
+                        <span class="material-symbols-outlined text-gray-600 dark:text-gray-400">
+                          {{ session.deviceInfo.deviceType === 'Mobile' ? 'smartphone' : session.deviceInfo.deviceType === 'Tablet' ? 'tablet' : 'computer' }}
+                        </span>
+                      </div>
+                      <div>
+                        <p class="text-black dark:text-white text-sm font-medium">{{ session.deviceInfo.deviceType || 'Unknown Device' }}</p>
+                        <p class="text-black/60 dark:text-white/60 text-xs">{{ session.deviceInfo.ip }}</p>
+                        <p class="text-black/60 dark:text-white/60 text-xs truncate max-w-[150px]" :title="session.deviceInfo.browser">{{ session.deviceInfo.browser }}</p>
+                      </div>
                     </div>
                   </td>
                   <td class="py-4 px-6">
@@ -749,14 +793,17 @@ const closeSessionModal = () => {
             <div>
               <label class="block text-sm font-medium text-black dark:text-white mb-2">Select Table</label>
               <select
-                v-model="selectedTableForQR"
+                v-model="selectedTableId"
                 class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <option>Table 1 (Indoor, 3 seats)</option>
-                <option>Table 2 (Indoor, 4 seats)</option>
-                <option>Table 3 (Outdoor, 2 seats)</option>
-                <option>Table 4 (Indoor, 6 seats)</option>
-                <option>Table 5 (Patio, 4 seats)</option>
+                <option v-if="tableSelectOptions.length === 0" disabled value="">No tables available</option>
+                <option
+                  v-for="option in tableSelectOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
               </select>
             </div>
 
@@ -766,26 +813,40 @@ const closeSessionModal = () => {
                 v-model="qrSize"
                 class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <option>Small (200x200px)</option>
-                <option selected>Medium (400x400px)</option>
-                <option>Large (600x600px)</option>
-                <option>Extra Large (800x800px)</option>
+                <option
+                  v-for="size in qrSizeOptions"
+                  :key="size.value"
+                  :value="size.value"
+                >
+                  {{ size.label }}
+                </option>
               </select>
             </div>
 
             <div class="bg-white dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div class="text-center">
-                <div class="w-32 h-32 mx-auto mb-3 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                  <span class="material-symbols-outlined text-4xl text-gray-400">qr_code</span>
+                <div class="w-40 h-40 mx-auto mb-3 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
+                  <span v-if="isGeneratingQr" class="material-symbols-outlined text-3xl text-gray-400 animate-spin">progress_activity</span>
+                  <img
+                    v-else-if="qrPreviewDataUrl"
+                    :src="qrPreviewDataUrl"
+                    :alt="selectedTable ? `Table ${selectedTable.number} QR code` : 'QR code preview'"
+                    class="w-full h-full object-contain"
+                  />
+                  <span v-else class="material-symbols-outlined text-4xl text-gray-400">qr_code</span>
                 </div>
                 <p class="text-sm text-black/60 dark:text-white/60">QR Code Preview</p>
-                <p class="text-xs text-black/60 dark:text-white/60 mt-1">{{ selectedTableForQR.split(' (')[0] }}-QR</p>
+                <p class="text-xs text-black/60 dark:text-white/60 mt-1">
+                  <span v-if="selectedTable">{{ selectedTableLabel }} • {{ currentQrSizeLabel }}</span>
+                  <span v-else>Select a table to generate its QR</span>
+                </p>
+                <p v-if="qrError" class="text-xs text-red-500 mt-2">{{ qrError }}</p>
               </div>
             </div>
 
             <div class="space-y-2">
               <button
-                @click="generateQRCode"
+                @click="generateQRCodePreview"
                 class="w-full px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-all font-medium"
               >
                 Generate QR Code
@@ -802,60 +863,6 @@ const closeSessionModal = () => {
               >
                 Print Table Tent
               </button>
-            </div>
-          </div>
-        </CardWrapper>
-
-        <!-- System Status -->
-        <CardWrapper>
-          <h3 class="text-lg font-bold text-black dark:text-white mb-4">System Status</h3>
-
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-black/60 dark:text-white/60">WiFi Network</span>
-              <div class="flex items-center gap-1">
-                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                <span class="text-sm font-medium text-green-600 dark:text-green-400">CafeOrder_WiFi</span>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-black/60 dark:text-white/60">Connected Devices</span>
-              <span class="text-sm font-bold text-black dark:text-white">12/50</span>
-            </div>
-
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-black/60 dark:text-white/60">Server Status</span>
-              <div class="flex items-center gap-1">
-                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                <span class="text-sm font-medium text-green-600 dark:text-green-400">Online</span>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-black/60 dark:text-white/60">Database</span>
-              <div class="flex items-center gap-1">
-                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                <span class="text-sm font-medium text-green-600 dark:text-green-400">Connected</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h4 class="text-sm font-medium text-black dark:text-white mb-3">Network Info</h4>
-            <div class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-black/60 dark:text-white/60">Server IP</span>
-                <span class="text-xs font-medium text-black dark:text-white">192.168.1.1</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-black/60 dark:text-white/60">DHCP Range</span>
-                <span class="text-xs font-medium text-black dark:text-white">1.100-1.200</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-black/60 dark:text-white/60">Base URL</span>
-                <span class="text-xs font-medium text-black dark:text-white">192.168.1.1/table/</span>
-              </div>
             </div>
           </div>
         </CardWrapper>

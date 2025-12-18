@@ -143,14 +143,14 @@ const itemBgClass = computed(() => {
           </div>
           <div>
             <label :class="['block text-xs font-medium mb-1', textSecondaryClass]">Status</label>
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" :class="getStatusClasses(status.color)">
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium" :class="getStatusClasses(status.color)">
               <span class="w-1 h-1 rounded-full" :class="getStatusDotClasses(status.color)"></span>
               {{ status.text }}
             </span>
           </div>
           <div>
             <label :class="['block text-xs font-medium mb-1', textSecondaryClass]">Payment</label>
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" :class="getStatusClasses(payment.color)">
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium" :class="getStatusClasses(payment.color)">
               <span class="w-1 h-1 rounded-full" :class="getStatusDotClasses(payment.color)"></span>
               {{ payment.status }}
             </span>

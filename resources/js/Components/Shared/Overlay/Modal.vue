@@ -130,7 +130,7 @@ const maxWidthClass = computed(() => {
             >
                 <div
                     v-show="show"
-                    class="transform overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:mx-auto sm:w-full"
+                    class="transform overflow-hidden rounded-lg bg-white shadow-xl transition-all w-full sm:mx-auto sm:w-full"
                     :class="typeof maxWidthClass === 'string' ? maxWidthClass : ''"
                     :style="typeof maxWidthClass === 'object' ? maxWidthClass : {}"
                 >

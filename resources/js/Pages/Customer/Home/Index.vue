@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import CustomerLayout from '../../../Layouts/CustomerLayout.vue'
 import FeaturedPicks from '../../../Components/Customer/UI/FeaturedPicks.vue'
 import ProductsSection from '../../../Components/Customer/Products/ProductList.vue'
@@ -8,7 +8,37 @@ import ProductDetailModal from '../../../Components/Customer/Products/ProductDet
 import CustomProductModal from '../../../Components/Customer/Products/CustomProductModal.vue'
 import Welcomebanner from '../../../Components/Customer/Header/WelcomeBanner.vue'
 import LoadingSpinner from '../../../Components/Shared/Base/LoadingSpinner.vue'
+import CustomerTypeSelectionModal from '../../../Components/Customer/Modals/CustomerTypeSelectionModal.vue'
 import { useCart } from '../../../composables/useCart.js'
+
+const props = defineProps({
+  tableId: {
+    type: [Number, String],
+    default: null
+  },
+  tableNumber: {
+    type: [Number, String],
+    default: null
+  },
+  customerType: {
+    type: String,
+    default: null
+  },
+  token: {
+    type: String,
+    default: null
+  }
+})
+
+if (props.tableId) {
+  sessionStorage.setItem('currentTableId', props.tableId)
+}
+if (props.tableNumber) {
+  sessionStorage.setItem('currentTableNumber', props.tableNumber)
+}
+if (props.token) {
+  sessionStorage.setItem('authTableToken', props.token)
+}
 
 // ============================================================================
 // Constants
@@ -17,6 +47,8 @@ const API_URL = '/api/menu'
 const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=Menu+Item'
 const DEFAULT_RATING = 4.6
 const DEFAULT_REVIEW_COUNT = 128
+
+const page = usePage()
 
 // ============================================================================
 // State Management
@@ -28,10 +60,13 @@ const categories = ref([
 const products = ref([])
 const loading = ref(true)
 const error = ref(null)
+const operatingHours = computed(() => page.props.operatingHours ?? null)
+const rating = computed(() => page.props.rating ?? null)
 
 // Modal state
 const showModal = ref(false)
 const showCustomModal = ref(false)
+const showCustomerTypeModal = ref(false)
 const selectedProduct = ref(null)
 
 // Cart composable
@@ -99,9 +134,15 @@ const toProduct = (item) => {
     description: item?.description ?? '',
     // Use price_formatted accessor (cents to dollars) or fallback
     price: Number(item?.price_formatted ?? ((item?.price ?? 0) / 100)),
+    price_formatted: Number(item?.price_formatted ?? ((item?.price ?? 0) / 100)),
     // Use image_url accessor from model for storage symlink
     image: item?.image_url ?? PLACEHOLDER_IMAGE,
+    image_url: item?.image_url ?? PLACEHOLDER_IMAGE,
     category: slugify(categoryName),
+    // Size labels for customization
+    size_labels: item?.size_labels ?? ['Small', 'Medium', 'Large'],
+    // Addons for customization
+    addons: item?.addons ?? [],
     // Use deterministic defaults instead of random values
     rating: item?.rating ?? DEFAULT_RATING,
     reviewCount: item?.review_count ?? DEFAULT_REVIEW_COUNT,
@@ -265,7 +306,32 @@ const handleAddCustomToCart = (customizedProduct) => {
 }
 
 const handleViewAll = () => {
-  router.visit('/menu')
+  if (props.token) {
+    router.visit(route('table.fullmenu', { token: props.token }))
+  } else {
+    router.visit('/menu')
+  }
+}
+
+const handleCustomerTypeSelect = async (selection) => {
+  try {
+    // Use prop, sessionStorage, or fallback
+    const currentTableId = props.tableId || sessionStorage.getItem('currentTableId');
+    
+    const response = await window.axios.post('/api/session/customer-type', { 
+      type: selection.type,
+      payment_mode: selection.payment_mode,
+      table_id: currentTableId
+    })
+    showCustomerTypeModal.value = false
+    
+    // Reload to ensure backend session state (especially host status) is reflected
+    if (response.data.success) {
+      router.reload()
+    }
+  } catch (err) {
+    console.error('Failed to save customer type:', err)
+  }
 }
 
 // ============================================================================
@@ -273,6 +339,10 @@ const handleViewAll = () => {
 // ============================================================================
 onMounted(() => {
   fetchProducts()
+  
+  if (!props.customerType) {
+    showCustomerTypeModal.value = true
+  }
 })
 
 onUnmounted(() => {
@@ -333,6 +403,12 @@ onUnmounted(() => {
       :product="selectedProduct"
       @close="handleCloseCustomModal"
       @add-to-cart="handleAddCustomToCart"
+    />
+
+    <!-- Customer Type Selection Modal -->
+    <CustomerTypeSelectionModal
+      :show="showCustomerTypeModal"
+      @select="handleCustomerTypeSelect"
     />
   </CustomerLayout>
 </template>

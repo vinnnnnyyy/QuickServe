@@ -25,16 +25,28 @@ const props = defineProps({
 
 const themes = {
     primary: {
-        card: 'bg-gradient-to-br from-primary-50 to-primary-100 border border-primary-200/50',
-        icon: 'color: rgb(234 88 12)', // primary-600
-        label: 'color: rgb(194 65 12)', // primary-700
-        value: 'color: rgb(154 52 18)' // primary-800
+        card: 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm',
+        icon: 'color: #3B82F6', // blue-500
+        label: 'color: #6B7280', // gray-500
+        value: 'color: #111827' // gray-900
     },
     green: {
-        card: 'bg-gradient-to-br from-green-50 to-green-100 border border-green-200/50',
-        icon: 'color: rgb(22 163 74)', // green-600
-        label: 'color: rgb(21 128 61)', // green-700
-        value: 'color: rgb(22 101 52)' // green-800
+        card: 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm',
+        icon: 'color: #10B981', // green-500
+        label: 'color: #6B7280',
+        value: 'color: #111827'
+    },
+    blue: {
+        card: 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm',
+        icon: 'color: #3B82F6',
+        label: 'color: #6B7280',
+        value: 'color: #111827'
+    },
+    purple: {
+        card: 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm',
+        icon: 'color: #8B5CF6', // purple-500
+        label: 'color: #6B7280',
+        value: 'color: #111827'
     }
 }
 

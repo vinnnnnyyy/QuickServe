@@ -5,13 +5,22 @@ import FormInput from '@/Components/Admin/Forms/FormInput.vue';
 import FormSelect from '@/Components/Admin/Forms/FormSelect.vue';
 import FormTextarea from '@/Components/Admin/Forms/FormTextarea.vue';
 import FormSection from '@/Components/Admin/Forms/FormSection.vue';
-import { ref, watch, onMounted } from 'vue';
-import { router, useForm } from '@inertiajs/vue3'; // Import useForm
+import AddonModal from '@/Components/Admin/Modals/AddonModal.vue';
+import { ref, watch, onMounted, computed } from 'vue';
+import { router, useForm } from '@inertiajs/vue3';
 import { useMenuCategories } from '@/composables/useMenuCategories.js';
 
 // --- Props ---
 const props = defineProps({
   categories: {
+    type: Array,
+    default: () => []
+  },
+  addons: {
+    type: Array,
+    default: () => []
+  },
+  inventoryItems: {
     type: Array,
     default: () => []
   }
@@ -22,25 +31,104 @@ const props = defineProps({
 const form = useForm({
   name: '',
   description: '',
-  category_id: null,      // **CHANGED**: Expecting an ID
+  category_id: null,
   price: '',
   temperature: 'Hot',
   prep_time: '',
-  size_preset: '3',       // **RENAMED**: This controls the labels
-  size_labels: ['Small', 'Medium', 'Large'], // **ADDED**: This is sent to DB
+  size_preset: '3',
+  size_labels: ['Small', 'Medium', 'Large'],
   featured: false,
   popular: false,
   available: true,
-  image: null,            // This will hold the File object
-  notes: ''
+  image: null,
+  notes: '',
+  addon_ids: [],
+  ingredients: [] // Array of { id, quantity }
 });
+
+
 
 const imagePreview = ref(null);
 const newCategory = ref('');
 const showNewCategory = ref(false);
 const newSize = ref('');
 const showNewSize = ref(false);
-// isSubmitting is replaced by form.processing
+const addonSearch = ref('');
+const showAddonModal = ref(false);
+const localAddons = ref([]);
+
+const allAddons = computed(() => localAddons.value);
+
+const addonCategories = computed(() => {
+  const categories = [...new Set(allAddons.value.map(a => a.category))];
+  if (categories.length === 0) {
+    return ['Extras', 'Milk', 'Toppings', 'Syrups'];
+  }
+  return categories;
+});
+
+const groupedAddons = computed(() => {
+  const groups = {};
+  allAddons.value.forEach(addon => {
+    if (!groups[addon.category]) {
+      groups[addon.category] = [];
+    }
+    groups[addon.category].push(addon);
+  });
+  return groups;
+});
+
+const filteredAddons = computed(() => {
+  if (!addonSearch.value.trim()) return allAddons.value;
+  const query = addonSearch.value.toLowerCase();
+  return allAddons.value.filter(addon => 
+    addon.name.toLowerCase().includes(query) || 
+    addon.category.toLowerCase().includes(query)
+  );
+});
+
+const filteredGroupedAddons = computed(() => {
+  const groups = {};
+  filteredAddons.value.forEach(addon => {
+    if (!groups[addon.category]) {
+      groups[addon.category] = [];
+    }
+    groups[addon.category].push(addon);
+  });
+  return groups;
+});
+
+const isAddonSelected = (addonId) => {
+  return form.addon_ids.includes(addonId);
+};
+
+const toggleAddon = (addonId) => {
+  const index = form.addon_ids.indexOf(addonId);
+  if (index === -1) {
+    form.addon_ids.push(addonId);
+  } else {
+    form.addon_ids.splice(index, 1);
+  }
+};
+
+const selectAllAddons = () => {
+  form.addon_ids = allAddons.value.map(a => a.id);
+};
+
+const clearAllAddons = () => {
+  form.addon_ids = [];
+};
+
+const getCategoryIcon = (category) => {
+  const icons = {
+    'Milk': 'water_drop',
+    'Extras': 'add_circle',
+    'Toppings': 'cake',
+    'Syrups': 'local_cafe',
+    'Sweeteners': 'nutrition'
+  };
+  return icons[category] || 'extension';
+};
 
 // --- Categories ---
 const { 
@@ -62,6 +150,9 @@ onMounted(() => {
   }));
   
   categoryOptions.value = dbCategories;
+  
+  // Initialize local addons
+  localAddons.value = [...props.addons];
 });
 
 // --- Temperature ---
@@ -245,9 +336,21 @@ const submitForm = () => {
     return;
   }
 
+  // Prepare payload with converted quantities
+  const payload = {
+    ...form.data(), // Use form.data() to get plain object
+    ingredients: form.ingredients.map(ing => ({
+      id: ing.id,
+      quantity: ing.use_recipe_unit 
+        ? (parseFloat(ing.quantity) * (parseFloat(ing.conversion_factor) || 1)) 
+        : parseFloat(ing.quantity)
+    }))
+  };
+
   // Use Inertia to POST the form.
   // This automatically handles file uploads (multipart/form-data).
-  form.post(route('admin.menu.store'), {
+  router.post(route('admin.menu.store'), payload, {
+    forceFormData: true, // Important for file uploads if standard router.post is used with payload object
     onError: (errors) => {
       // Show validation errors from Laravel
       console.error(errors);
@@ -256,6 +359,7 @@ const submitForm = () => {
     onSuccess: () => {
       // Controller will handle the redirect and success flash message
       // form.reset(); // Optionally reset the form
+      localStorage.removeItem('menuItemDraft');
     }
   });
 };
@@ -269,6 +373,65 @@ const saveDraft = () => {
 const goBack = () => {
   router.get('/admin/menu'); // Assuming this is your index
 };
+
+const handleAddonCreated = (newAddon) => {
+  localAddons.value.push(newAddon);
+  form.addon_ids.push(newAddon.id);
+};
+
+// --- Recipe Builder Logic ---
+const availableIngredients = computed(() => {
+  return props.inventoryItems.filter(item => 
+    !form.ingredients.some(ing => ing.id === item.id)
+  );
+});
+
+const addIngredient = () => {
+    form.ingredients.push({
+        id: null,
+        quantity: 1,
+        unit_price: 0, // for display only
+        unit: '', // for display only
+        recipe_unit: '',
+        conversion_factor: 1,
+        use_recipe_unit: false
+    });
+};
+
+const removeIngredient = (index) => {
+    form.ingredients.splice(index, 1);
+};
+
+const onIngredientSelect = (index, inventoryId) => {
+    const selectedItem = props.inventoryItems.find(i => i.id === inventoryId);
+    if (selectedItem) {
+        form.ingredients[index].id = selectedItem.id;
+        form.ingredients[index].unit_price = selectedItem.unit_price;
+        form.ingredients[index].unit = selectedItem.unit;
+        form.ingredients[index].recipe_unit = selectedItem.recipe_unit;
+        form.ingredients[index].conversion_factor = selectedItem.conversion_factor ? parseFloat(selectedItem.conversion_factor) : 1;
+        form.ingredients[index].use_recipe_unit = false;
+    }
+};
+
+const totalCost = computed(() => {
+    return form.ingredients.reduce((total, ing) => {
+        // Find the original item to get the price if available
+        const item = props.inventoryItems.find(i => i.id === ing.id);
+        const price = item ? parseFloat(item.unit_price) : 0;
+        const quantity = parseFloat(ing.quantity) || 0;
+        const factor = ing.use_recipe_unit ? (parseFloat(ing.conversion_factor) || 1) : 1;
+        return total + (price * quantity * factor);
+    }, 0);
+});
+
+const profitMargin = computed(() => {
+    const sellingPrice = parseFloat(form.price) || 0;
+    const cost = totalCost.value;
+    if (sellingPrice === 0) return 0;
+    return ((sellingPrice - cost) / sellingPrice) * 100;
+});
+
 </script>
 
 <template>
@@ -493,6 +656,207 @@ const goBack = () => {
 
         <CardWrapper rounded="xl" padding="lg" shadow="hover" hover>
           <FormSection 
+            title="Recipe & Costing"
+            subtitle="Link inventory items to calculate food cost"
+            icon="receipt_long"
+          />
+          
+          <div class="space-y-6">
+            <div v-if="form.ingredients.length > 0" class="space-y-4">
+                <div v-for="(ing, index) in form.ingredients" :key="index" class="flex flex-col sm:flex-row gap-4 items-start sm:items-end bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <div class="flex-1 w-full">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Ingredient</label>
+                        <select 
+                            :value="ing.id"
+                            @change="(e) => onIngredientSelect(index, Number(e.target.value))"
+                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm focus:border-[#ec7813] focus:ring focus:ring-[#ec7813]/20"
+                            required
+                        >
+                            <option :value="null" disabled>Select Item</option>
+                            <option v-for="item in props.inventoryItems" :key="item.id" :value="item.id">
+                                {{ item.name }} ({{ item.unit || 'units' }})
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <div class="w-full sm:w-40">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-semibold text-gray-500">
+                                Quantity ({{ ing.use_recipe_unit ? (ing.recipe_unit || 'Units') : (ing.unit || 'Units') }})
+                            </label>
+                            
+                            <!-- Unit Toggle -->
+                            <div v-if="ing.recipe_unit" class="flex items-center">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" v-model="ing.use_recipe_unit" class="sr-only peer">
+                                    <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#ec7813]"></div>
+                                    <span class="ml-1 text-[10px] font-medium text-gray-500">{{ ing.recipe_unit }}?</span>
+                                </label>
+                            </div>
+                        </div>
+                        <input 
+                            v-model="ing.quantity"
+                            type="number" 
+                            step="0.0001"
+                            min="0"
+                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm focus:border-[#ec7813] focus:ring focus:ring-[#ec7813]/20"
+                            placeholder="Qty"
+                            required
+                        >
+                        <div v-if="ing.use_recipe_unit" class="mt-1 text-[10px] text-gray-500">
+                             ≈ {{ (ing.quantity * (ing.conversion_factor || 1)).toFixed(2) }} {{ ing.unit }}
+                        </div>
+                    </div>
+
+                    <div class="pb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+                       Cost: ₱{{ ((props.inventoryItems.find(i => i.id === ing.id)?.unit_price || 0) * ing.quantity * (ing.use_recipe_unit ? (ing.conversion_factor || 1) : 1)).toFixed(2) }}
+                    </div>
+
+                    <button 
+                        type="button" 
+                        @click="removeIngredient(index)"
+                        class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </div>
+            </div>
+
+            <div v-else class="text-center py-6 bg-gray-50 dark:bg-gray-800/30 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                <p class="text-sm text-gray-500 mb-3">No ingredients added yet</p>
+            </div>
+
+            <button 
+                type="button"
+                @click="addIngredient"
+                class="flex items-center gap-2 text-sm font-medium text-[#ec7813] hover:text-[#ea580c]"
+            >
+                <span class="material-symbols-outlined">add</span>
+                Add Ingredient
+            </button>
+
+            <!-- Cost Summary -->
+            <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                   <div class="text-xs text-gray-500 dark:text-gray-400">Total Food Cost</div>
+                   <div class="text-lg font-bold text-gray-900 dark:text-white">₱{{ totalCost.toFixed(2) }}</div>
+                </div>
+                <div>
+                   <div class="text-xs text-gray-500 dark:text-gray-400">Selling Price</div>
+                   <div class="text-lg font-bold text-gray-900 dark:text-white">₱{{ (parseFloat(form.price)||0).toFixed(2) }}</div>
+                </div>
+                <div>
+                   <div class="text-xs text-gray-500 dark:text-gray-400">Estimated Margin</div>
+                   <div :class="['text-lg font-bold', profitMargin > 60 ? 'text-green-600' : 'text-orange-600']">
+                       {{ profitMargin.toFixed(1) }}%
+                   </div>
+                </div>
+            </div>
+
+          </div>
+        </CardWrapper>
+
+        <CardWrapper rounded="xl" padding="lg" shadow="hover" hover>
+          <FormSection 
+            title="Available Add-ons"
+            subtitle="Select customization options available for this menu item"
+            icon="extension"
+          />
+          
+          <div v-if="allAddons.length === 0" class="text-center py-8 bg-gray-50 dark:bg-gray-900/20 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <span class="material-symbols-outlined text-gray-400 text-2xl">extension</span>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No add-ons available</h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">Create add-ons first to assign them to menu items</p>
+            <button 
+              type="button"
+              @click="showAddonModal = true"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-all"
+            >
+              <span class="material-symbols-outlined">add</span>
+              <span>Create Add-on</span>
+            </button>
+          </div>
+
+          <div v-else>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div class="relative flex-1 max-w-md">
+                <input 
+                  v-model="addonSearch"
+                  type="search" 
+                  placeholder="Search add-ons..." 
+                  class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button 
+                  type="button"
+                  @click="showAddonModal = true"
+                  class="px-3 py-1.5 text-sm rounded-lg bg-[#ec7813] text-white hover:bg-[#ea580c] transition-all flex items-center gap-1"
+                >
+                  <span class="material-symbols-outlined text-sm">add</span>
+                  New Add-on
+                </button>
+                <button 
+                  type="button"
+                  @click="selectAllAddons"
+                  class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                >
+                  Select All
+                </button>
+                <button 
+                  type="button"
+                  @click="clearAllAddons"
+                  class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                >
+                  Clear All
+                </button>
+                <span class="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                  {{ form.addon_ids.length }} selected
+                </span>
+              </div>
+            </div>
+
+            <div class="space-y-6">
+              <div v-for="(categoryAddons, category) in filteredGroupedAddons" :key="category">
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                  <span class="material-symbols-outlined text-primary">{{ getCategoryIcon(category) }}</span>
+                  {{ category }}
+                </h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <label
+                    v-for="addon in categoryAddons"
+                    :key="addon.id"
+                    class="flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all duration-200"
+                    :class="isAddonSelected(addon.id) 
+                      ? 'border-primary bg-primary/5 dark:bg-primary/10' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-primary/30 hover:bg-gray-50 dark:hover:bg-gray-800'"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="isAddonSelected(addon.id)"
+                      @change="toggleAddon(addon.id)"
+                      class="w-5 h-5 rounded text-primary focus:ring-primary focus:ring-2"
+                    >
+                    <div class="flex-1 min-w-0">
+                      <span class="text-sm font-medium text-gray-900 dark:text-white block truncate">{{ addon.name }}</span>
+                      <span class="text-xs text-gray-500 dark:text-gray-400">+₱{{ addon.price_formatted.toFixed(2) }}</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="Object.keys(filteredGroupedAddons).length === 0" class="text-center py-8">
+              <p class="text-gray-500 dark:text-gray-400">No add-ons match your search</p>
+            </div>
+          </div>
+        </CardWrapper>
+
+        <CardWrapper rounded="xl" padding="lg" shadow="hover" hover>
+          <FormSection 
             title="Settings & Status"
             subtitle="Item visibility and promotional settings"
             icon="settings"
@@ -581,6 +945,13 @@ const goBack = () => {
         </CardWrapper>
       </form>
     </div>
+
+    <AddonModal
+      :show="showAddonModal"
+      :existing-categories="addonCategories"
+      @close="showAddonModal = false"
+      @created="handleAddonCreated"
+    />
   </AdminLayout>
 </template>
 

@@ -1,13 +1,23 @@
 <script setup>
+import { ref, watch } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import { useCart } from '../../../composables/useCart.js'
 
 const emit = defineEmits(['open-cart'])
-const { cartItemCount } = useCart()
+const { cartItemCount, cartAnimationTrigger } = useCart()
+
+const isPop = ref(false)
+
+watch(cartAnimationTrigger, () => {
+    isPop.value = true
+    setTimeout(() => {
+        isPop.value = false
+    }, 300)
+})
 </script>
 
 <template>
-  <div class="lg:hidden fixed left-4 right-4 bottom-[max(env(safe-area-inset-bottom),1rem)] z-50">
+  <div class="hidden fixed left-4 right-4 bottom-[max(env(safe-area-inset-bottom),1rem)] z-50">
     <div class="mx-auto flex w-full max-w-sm items-center justify-between rounded-full bg-white shadow-lg ring-1 ring-black/10 p-1">
       <Link 
         :href="route('order.status')" 
@@ -21,7 +31,10 @@ const { cartItemCount } = useCart()
         class="relative flex h-11 w-11 items-center justify-center rounded-full bg-primary-600 text-white hover:bg-primary-700"
       >
         <i class="fas fa-shopping-cart text-lg"></i>
-        <span v-if="cartItemCount > 0" class="absolute -top-1 -right-1 min-w-[1.1rem] rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{{ cartItemCount }}</span>
+        <span 
+          v-if="cartItemCount > 0" 
+          :class="['absolute -top-1 -right-1 min-w-[1.1rem] rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white transition-transform duration-300', isPop ? 'scale-125' : 'scale-100']"
+        >{{ cartItemCount }}</span>
       </button>
     </div>
   </div>

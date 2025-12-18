@@ -154,7 +154,7 @@ const deleteItem = (itemId) => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-400/10">
             <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">inventory_2</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">Active</span>
+          <span class="text-xs font-medium text-blue-600 dark:text-blue-400">Active</span>
         </div>
         <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ summary.totalItems ?? 0 }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Total Items</p>
@@ -165,7 +165,7 @@ const deleteItem = (itemId) => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-red-500/20 to-red-400/10">
             <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-2xl">warning</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400">Critical</span>
+          <span class="text-xs font-medium text-red-600 dark:text-red-400">Critical</span>
         </div>
         <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ summary.lowStockCount ?? 0 }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Low Stock</p>
@@ -176,7 +176,7 @@ const deleteItem = (itemId) => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10">
             <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-2xl">trending_up</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">This month</span>
+          <span class="text-xs font-medium text-green-600 dark:text-green-400">This month</span>
         </div>
         <p class="text-3xl font-bold text-black dark:text-white mb-1">₱{{ (summary.totalValue ?? 0).toFixed(2) }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Inventory Value</p>
@@ -265,13 +265,13 @@ const deleteItem = (itemId) => {
                 </div>
               </td>
               <td class="py-4 px-6">
-                <span class="inline-flex items-center px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 text-sm font-medium">
+                <span class="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400">
                   {{ item.category }}
                 </span>
               </td>
               <td class="py-4 px-6">
                 <div>
-                  <p class="text-gray-900 dark:text-white font-medium">{{ item.stock }} units</p>
+                  <p class="text-gray-900 dark:text-white font-medium">{{ item.stock }} {{ item.unit || 'units' }}</p>
                 </div>
               </td>
               <td class="py-4 px-6">
@@ -281,7 +281,7 @@ const deleteItem = (itemId) => {
                 <p class="text-gray-900 dark:text-white font-bold">₱{{ item.totalValue.toFixed(2) }}</p>
               </td>
               <td class="py-4 px-6">
-                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm font-medium">
+                <span class="inline-flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400">
                   <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                   {{ item.status }}
                 </span>

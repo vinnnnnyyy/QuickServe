@@ -66,9 +66,9 @@ const getStepState = (index) => {
                         <!-- Completed state -->
                         <div 
                             v-if="getStepState(index) === 'completed'"
-                            class="w-14 h-14 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white shadow-lg transform motion-reduce:transform-none animate-scale-in"
+                            class="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white transition-all duration-300"
                         >
-                            <i class="fas fa-check text-xl"></i>
+                            <i class="fas fa-check text-sm"></i>
                         </div>
 
                         <!-- Current state with pulse -->
@@ -77,30 +77,29 @@ const getStepState = (index) => {
                             class="relative"
                         >
                             <!-- Pulsing rings -->
-                            <div class="absolute inset-0 w-14 h-14 rounded-full bg-blue-400 motion-reduce:hidden animate-ping opacity-30"></div>
-                            <div class="absolute inset-1 w-12 h-12 rounded-full bg-blue-400 motion-reduce:hidden animate-ping opacity-50 animation-delay-75"></div>
+                            <div class="absolute inset-0 w-10 h-10 rounded-full bg-[#3B82F6] motion-reduce:hidden animate-ping opacity-20"></div>
                             <!-- Main circle -->
-                            <div class="relative w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-xl">
-                                <i :class="step.icon" class="text-xl"></i>
+                            <div class="relative w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white z-10 ring-4 ring-blue-50 dark:ring-blue-900/20">
+                                <i :class="step.icon" class="text-sm"></i>
                             </div>
                         </div>
 
                         <!-- Future state -->
                         <div 
                             v-else
-                            class="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 border-2 border-gray-200 dark:border-gray-600"
+                            class="w-10 h-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 border border-gray-200 dark:border-gray-700"
                         >
-                            <i :class="step.icon" class="text-lg"></i>
+                            <i :class="step.icon" class="text-sm"></i>
                         </div>
                     </div>
 
                     <!-- Step label -->
-                    <div class="mt-4 text-center">
+                    <div class="mt-3 text-center">
                         <p 
-                            class="text-sm font-medium transition-colors duration-200"
+                            class="text-xs font-medium transition-colors duration-200 uppercase tracking-wider"
                             :class="{
-                                'text-green-600 dark:text-green-400': getStepState(index) === 'completed',
-                                'text-blue-600 dark:text-blue-400 font-semibold': getStepState(index) === 'current',
+                                'text-gray-900 dark:text-gray-100': getStepState(index) === 'completed',
+                                'text-[#3B82F6] font-bold': getStepState(index) === 'current',
                                 'text-gray-400 dark:text-gray-500': getStepState(index) === 'future'
                             }"
                         >
@@ -111,11 +110,10 @@ const getStepState = (index) => {
                     <!-- Connector line -->
                     <div 
                         v-if="index < steps.length - 1"
-                        class="absolute top-7 left-1/2 w-full h-1 -z-10 transition-colors duration-300"
+                        class="absolute top-5 left-1/2 w-full h-0.5 -z-10 transition-colors duration-300"
                         :class="{
-                            'bg-gradient-to-r from-green-500 to-green-400': getStepState(index) === 'completed',
-                            'bg-gradient-to-r from-blue-400 to-gray-200 dark:to-gray-600': getStepState(index) === 'current',
-                            'bg-gray-200 dark:bg-gray-600': getStepState(index) === 'future'
+                            'bg-[#3B82F6]': getStepState(index) === 'completed',
+                            'bg-gray-200 dark:bg-gray-700': getStepState(index) !== 'completed'
                         }"
                     ></div>
                 </li>
@@ -126,16 +124,16 @@ const getStepState = (index) => {
                 <li 
                     v-for="(step, index) in steps"
                     :key="index"
-                    class="flex items-center space-x-4"
+                    class="relative flex items-start space-x-4"
                 >
                     <!-- Step circle -->
-                    <div class="relative flex items-center justify-center flex-shrink-0">
+                    <div class="relative z-10 flex flex-col items-center">
                         <!-- Completed state -->
                         <div 
                             v-if="getStepState(index) === 'completed'"
-                            class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white shadow-lg"
+                            class="w-8 h-8 rounded-full bg-[#3B82F6] flex items-center justify-center text-white"
                         >
-                            <i class="fas fa-check text-lg"></i>
+                            <i class="fas fa-check text-xs"></i>
                         </div>
 
                         <!-- Current state -->
@@ -143,28 +141,38 @@ const getStepState = (index) => {
                             v-else-if="getStepState(index) === 'current'"
                             class="relative"
                         >
-                            <div class="absolute inset-0 w-12 h-12 rounded-full bg-blue-400 motion-reduce:hidden animate-ping opacity-30"></div>
-                            <div class="relative w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-lg">
-                                <i :class="step.icon" class="text-lg"></i>
+                            <div class="absolute inset-0 w-8 h-8 rounded-full bg-[#3B82F6] motion-reduce:hidden animate-ping opacity-20"></div>
+                            <div class="relative w-8 h-8 rounded-full bg-[#3B82F6] flex items-center justify-center text-white ring-4 ring-blue-50 dark:ring-blue-900/20">
+                                <i :class="step.icon" class="text-xs"></i>
                             </div>
                         </div>
 
                         <!-- Future state -->
                         <div 
                             v-else
-                            class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 border-2 border-gray-200 dark:border-gray-600"
+                            class="w-8 h-8 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 border border-gray-200 dark:border-gray-700"
                         >
-                            <i :class="step.icon" class="text-lg"></i>
+                            <i :class="step.icon" class="text-xs"></i>
                         </div>
                     </div>
 
+                    <!-- Connector line for mobile -->
+                    <div 
+                        v-if="index < steps.length - 1"
+                        class="absolute left-4 top-8 w-0.5 h-[calc(100%+1rem)] -ml-px -z-0"
+                        :class="{
+                            'bg-[#3B82F6]': getStepState(index) === 'completed',
+                            'bg-gray-200 dark:bg-gray-700': getStepState(index) !== 'completed'
+                        }"
+                    ></div>
+
                     <!-- Step info -->
-                    <div class="flex-1 min-w-0">
+                    <div class="flex-1 min-w-0 pt-1">
                         <p 
-                            class="text-base font-medium transition-colors duration-200"
+                            class="text-sm font-medium transition-colors duration-200"
                             :class="{
-                                'text-green-600 dark:text-green-400': getStepState(index) === 'completed',
-                                'text-blue-600 dark:text-blue-400 font-semibold': getStepState(index) === 'current',
+                                'text-gray-900 dark:text-gray-100': getStepState(index) === 'completed',
+                                'text-[#3B82F6] font-bold': getStepState(index) === 'current',
                                 'text-gray-400 dark:text-gray-500': getStepState(index) === 'future'
                             }"
                         >
@@ -172,22 +180,11 @@ const getStepState = (index) => {
                         </p>
                         <p 
                             v-if="getStepState(index) === 'current'"
-                            class="text-sm text-blue-500 dark:text-blue-400 mt-1"
+                            class="text-xs text-blue-500 dark:text-blue-400 mt-0.5"
                         >
                             Currently in progress...
                         </p>
                     </div>
-
-                    <!-- Connector line for mobile -->
-                    <div 
-                        v-if="index < steps.length - 1"
-                        class="absolute left-6 mt-12 w-0.5 h-8 transition-colors duration-300"
-                        :class="{
-                            'bg-green-400': getStepState(index) === 'completed',
-                            'bg-blue-300': getStepState(index) === 'current',
-                            'bg-gray-200 dark:bg-gray-600': getStepState(index) === 'future'
-                        }"
-                    ></div>
                 </li>
             </ol>
         </div>
@@ -195,7 +192,7 @@ const getStepState = (index) => {
         <!-- Terminal status banner -->
         <div 
             v-if="terminal && terminalInfo"
-            class="mt-6 p-4 rounded-xl text-center text-sm font-medium border shadow-sm transition-all duration-200"
+            class="mt-6 p-4 rounded-xl text-center text-sm font-medium border transition-all duration-200"
             :class="{
                 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800': terminalInfo.color === 'green',
                 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800': terminalInfo.color === 'red',

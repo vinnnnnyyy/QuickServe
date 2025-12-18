@@ -201,7 +201,7 @@ onMounted(() => {
                             {{ formatPrice(product.price) }}
                         </span>
                         <span v-if="product.status" :class="[
-                            'text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap',
+                            'text-xs font-medium whitespace-nowrap',
                             product.status.color
                         ]">
                             {{ product.status.text }}
@@ -224,7 +224,7 @@ onMounted(() => {
                         @click="$emit('view-details', product)"
                         :disabled="!product.status || product.status.text === 'Out of Stock'"
                     >
-                        {{ product.status && product.status.text === 'Out of Stock' ? 'Out of Stock' : 'Add to Cart' }}
+                        {{ product.status && product.status.text === 'Out of Stock' ? 'Out of Stock' : 'Add to Order' }}
                     </Button>
                     <Button 
                         variant="secondary" 

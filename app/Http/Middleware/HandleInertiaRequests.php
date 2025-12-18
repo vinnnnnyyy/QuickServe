@@ -29,11 +29,32 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $staffRole = null;
+        
+        if ($user) {
+            $staff = $user->staff;
+            $staffRole = $staff ? strtolower($staff->role) : null;
+        }
+        
+        // Helper to get active session data
+        $tableSession = null;
+        if (session('table_id')) {
+            $tableSession = \App\Models\TableSession::where('table_id', session('table_id'))->first();
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
+                'staffRole' => $staffRole,
             ],
+            'tableSession' => $tableSession ? [
+                'id' => $tableSession->session_id,
+                'customer_type' => $tableSession->metadata['customer_type'] ?? null,
+                'payment_mode' => $tableSession->metadata['payment_mode'] ?? null,
+            ] : null,
+            'sessionId' => session()->getId(), // Ensure this matches heartbeat logic
         ];
     }
 }

@@ -1,9 +1,9 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import SidebarLogo from '../Sidebar/SidebarLogo.vue';
-import SidebarStats from '../Sidebar/SidebarStats.vue';
 import SidebarQuickActions from '../Sidebar/SidebarQuickActions.vue';
 import HeaderNavigation from './HeaderNavigation.vue';
+
 const props = defineProps({
     isOpen: {
         type: Boolean,
@@ -12,7 +12,7 @@ const props = defineProps({
     categories: {
         type: Array,
         default: () => []
-    }
+    },
 });
 
 const emit = defineEmits(['close', 'category-selected']);
@@ -96,7 +96,6 @@ onUnmounted(() => {
                     </div>
                     <SidebarLogo cafe-name="Café Delight" tagline="Best Coffee in Town" />
 
-                    <SidebarStats />
                     <!-- Quick Actions Section -->
                     <SidebarQuickActions />
                 </div>

@@ -21,9 +21,16 @@ return Application::configure(basePath: dirname(__DIR__))
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
 
+        $middleware->encryptCookies(except: [
+            'qs_device_id',
+        ]);
+
         $middleware->alias([
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'admin' => \App\Http\Middleware\AdminAuthenticate::class,
+            'table.token' => \App\Http\Middleware\RequireTableToken::class,
+            'table.device' => \App\Http\Middleware\TableDeviceContext::class,
+            'customer.visibility' => \App\Http\Middleware\CustomerVisibility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -51,6 +51,20 @@ class MenuItem extends Model
         return $this->belongsTo(Category::class);
     }
 
+    // Relationship to Addons
+    public function addons()
+    {
+        return $this->belongsToMany(Addon::class, 'menu_item_addon');
+    }
+
+    // Relationship to Inventory (Ingredients)
+    public function ingredients()
+    {
+        return $this->belongsToMany(InventoryItem::class, 'menu_item_ingredients')
+                    ->withPivot('quantity')
+                    ->withTimestamps();
+    }
+
     // Accessor for image URL
     public function getImageUrlAttribute()
     {

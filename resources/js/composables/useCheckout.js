@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { useToast } from 'vue-toastification'
+import { useCart } from './useCart.js'
 
 // Global checkout state
 const currentOrder = ref(null)
@@ -53,17 +55,26 @@ export function useCheckout() {
     const createOrder = (orderData) => {
         const orderId = generateOrderId()
         const referenceNumber = generateReferenceNumber()
-        
+
+        const tableId = sessionStorage.getItem('currentTableId')
+        const tableNumber = sessionStorage.getItem('currentTableNumber')
+
         const order = {
             id: orderId,
             referenceNumber: referenceNumber,
-            customer: orderData.customer,
+            customer: {
+                ...orderData.customer,
+                tableId: tableId ? parseInt(tableId) : null,
+                tableNumber: tableNumber || orderData.customer.tableNumber || 'Table 1'
+            },
+            paymentMode: orderData.paymentMode || 'host', // Store payment mode
             items: [...orderData.items],
             subtotal: orderData.total,
-            total: orderData.total, // No delivery fee for table orders
+            total: orderData.total,
             paymentMethod: orderData.paymentMethod,
-            tableNumber: orderData.customer.tableNumber || 'Table 1', // Add table number
-            status: 'received', // Orders start as received
+            tableId: tableId ? parseInt(tableId) : null,
+            tableNumber: tableNumber || orderData.customer.tableNumber || 'Table 1',
+            status: 'received',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         }
@@ -78,7 +89,8 @@ export function useCheckout() {
         return new Promise((resolve) => {
             // Simulate payment processing delay
             setTimeout(() => {
-                const isSuccess = Math.random() > 0.1 // 90% success rate for testing
+                // Cash payments always succeed (no actual payment processing)
+                const isSuccess = paymentData.method === 'cash' ? true : Math.random() > 0.1
 
                 const paymentResult = {
                     success: isSuccess,
@@ -94,11 +106,11 @@ export function useCheckout() {
                     order.status = 'paid'
                     order.paymentDetails = paymentResult
                     order.updatedAt = new Date().toISOString()
-                    
+
                     // Add to order history (including backendId if available)
-                    orderHistory.value.unshift({ 
-                        ...order, 
-                        backendId: order.backendId 
+                    orderHistory.value.unshift({
+                        ...order,
+                        backendId: order.backendId
                     })
                 } else {
                     order.status = 'payment_failed'
@@ -135,59 +147,90 @@ export function useCheckout() {
 
     // Save order to backend API
     const saveOrderToAPI = async (order) => {
-        try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-            
-            const response = await fetch('/api/orders', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || ''
-                },
-                body: JSON.stringify(order)
-            })
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        const { cartMode } = useCart()
 
-            if (!response.ok) {
-                const errorText = await response.text()
-                throw new Error(`Failed to save order: ${response.status} - ${errorText}`)
+        const url = cartMode.value === 'table' ? '/api/table-cart/checkout' : '/api/orders'
+
+        // For table checkout, we just need customer name and payment method
+        // The items are already on the server
+        const body = cartMode.value === 'table'
+            ? {
+                customer_name: order.customer.nickname,
+                payment_method: order.paymentMethod,
+                mode: (order.paymentMode === 'split' || order.paymentMode === 'individual') ? 'individual' : 'host'
+                // We might want to pass total/items for validation, but backend has truth
+            }
+            : {
+                ...order,
+                table_id: order.tableId,
+                table_number: order.tableNumber
             }
 
-            const savedOrder = await response.json()
-            
-            // Persist backend ID for polling
-            if (savedOrder?.id != null) {
-                currentOrder.value.backendId = savedOrder.id
-                saveCurrentOrderToStorage(currentOrder.value)
-                // Store fallback mapping in localStorage
-                try {
-                    localStorage.setItem(`orderBackendId:${order.id}`, String(savedOrder.id))
-                } catch (e) {
-                    console.warn('Failed to store backend ID mapping in localStorage:', e)
-                }
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken || ''
+            },
+            body: JSON.stringify(body)
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null)
+
+            if (response.status === 422 && errorData?.error === 'ACTIVE_ORDER_EXISTS') {
+                throw new Error(errorData.message || 'You already have an active order')
             }
-            
-            return savedOrder
-        } catch (error) {
-            console.error('Error saving order to API:', error)
-            // Don't block the checkout flow if API fails
-            return null
+
+            throw new Error(errorData?.message || `Failed to save order: ${response.status}`)
         }
+
+        const savedOrder = await response.json()
+
+        // Persist backend ID for polling
+        if (savedOrder?.id != null) {
+            currentOrder.value.backendId = savedOrder.id
+            saveCurrentOrderToStorage(currentOrder.value)
+            // Store fallback mapping in localStorage
+            try {
+                localStorage.setItem(`orderBackendId:${order.id}`, String(savedOrder.id))
+            } catch (e) {
+                console.warn('Failed to store backend ID mapping in localStorage:', e)
+            }
+        }
+
+        return savedOrder
     }
 
     // Process payment and navigate to confirmation
     const processPaymentAndComplete = async (order, paymentData = {}) => {
-        const result = await processPayment(order, paymentData)
-        
-        if (result.success) {
-            // Save order to admin system
-            await saveOrderToAPI(order)
-            
-            router.visit(`/order/confirmation/${order.id}`)
-        } else {
-            // Handle payment failure
-            console.error('Payment failed:', result.error)
-            return result
+        const toast = useToast()
+
+        try {
+            const result = await processPayment(order, paymentData)
+
+            if (result.success) {
+                // Save order to admin system
+                await saveOrderToAPI(order)
+
+                toast.success('Order checked out successfully!', {
+                    timeout: 3000,
+                    icon: '✓'
+                })
+
+                router.visit(`/order/confirmation/${order.id}`)
+            } else {
+                // Handle payment failure
+                console.error('Payment failed:', result.error)
+                return result
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to process order', {
+                timeout: 5000
+            })
+            throw error
         }
     }
 
@@ -236,7 +279,7 @@ export function useCheckout() {
         // State
         currentOrder,
         orderHistory,
-        
+
         // Methods
         createOrder,
         processPayment,
@@ -245,7 +288,7 @@ export function useCheckout() {
         simulateGCashPayment,
         getOrder,
         clearCurrentOrder,
-        
+
         // Utilities
         generateOrderId,
         generateReferenceNumber,

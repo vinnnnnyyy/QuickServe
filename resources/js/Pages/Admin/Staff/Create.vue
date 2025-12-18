@@ -11,6 +11,7 @@ import { router } from '@inertiajs/vue3';
 const form = ref({
   fullName: '',
   email: '',
+  password: '',
   phone: '',
   role: '',
   experience: '',
@@ -123,6 +124,12 @@ const submitForm = async () => {
     return;
   }
 
+  // Validate password
+  if (!form.value.password || form.value.password.length < 6) {
+    alert('Please enter a password with at least 6 characters.');
+    return;
+  }
+
   // Validate experience
   const experience = parseInt(form.value.experience);
   if (isNaN(experience) || experience < 0) {
@@ -140,26 +147,30 @@ const submitForm = async () => {
   isSubmitting.value = true;
 
   try {
-    // Prepare data for API (match the expected field names)
-    const staffData = {
-      name: form.value.fullName,
-      email: form.value.email || '',
-      phone: form.value.phone || '',
-      role: jobTitleOptions.find(option => option.value === form.value.role)?.label || form.value.role,
-      shift: shiftOptions.find(option => option.value === form.value.workShift)?.label || form.value.workShift,
-      hourly_rate: parseFloat(form.value.hourlyRate) || 15.00,
-      hire_date: new Date().toISOString().split('T')[0]
-    };
+    // Prepare FormData for API (to support file upload)
+    const formData = new FormData();
+    formData.append('name', form.value.fullName);
+    formData.append('email', form.value.email || '');
+    formData.append('password', form.value.password);
+    formData.append('phone', form.value.phone || '');
+    formData.append('role', jobTitleOptions.find(option => option.value === form.value.role)?.label || form.value.role);
+    formData.append('shift', shiftOptions.find(option => option.value === form.value.workShift)?.label || form.value.workShift);
+    formData.append('hourly_rate', parseFloat(form.value.hourlyRate) || 15.00);
+    formData.append('hire_date', new Date().toISOString().split('T')[0]);
+    
+    // Add image if uploaded
+    if (form.value.profilePicture) {
+      formData.append('image', form.value.profilePicture);
+    }
 
     // Send to API
     const response = await fetch('/api/staff', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
       },
-      body: JSON.stringify(staffData)
+      body: formData
     });
 
     if (response.ok) {
@@ -284,6 +295,14 @@ const goBack = () => {
               label="Email Address"
               type="email"
               placeholder="Enter email address"
+            />
+            
+            <FormInput
+              v-model="form.password"
+              label="Password"
+              type="password"
+              placeholder="Enter password (min 6 characters)"
+              required
             />
             
             <FormInput

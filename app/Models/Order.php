@@ -16,6 +16,7 @@ class Order extends Model
         'customer_name',
         'customer_nickname',
         'customer_notes',
+        'table_id',
         'table_number',
         'order_type',
         'items',
@@ -32,6 +33,7 @@ class Order extends Model
         'device_ip',
         'device_type',
         'session_id',
+        'device_id',
         'original_data',
         'notes',
         'special_instructions',
@@ -115,6 +117,46 @@ class Order extends Model
     }
 
     /**
+     * Scope to get orders by device ID
+     */
+    public function scopeByDevice($query, string $deviceId)
+    {
+        return $query->where('device_id', $deviceId);
+    }
+
+    /**
+     * Scope to get orders for the current device and table context
+     */
+    public function scopeForCurrentContext($query, int $tableId, string $deviceId)
+    {
+        return $query->where('table_id', $tableId)->where('device_id', $deviceId);
+    }
+
+    /**
+     * Scope to get orders by table ID
+     */
+    public function scopeByTableId($query, int $tableId)
+    {
+        return $query->where('table_id', $tableId);
+    }
+
+    /**
+     * Check if the order belongs to the given device and table
+     */
+    public function belongsToContext(int $tableId, string $deviceId): bool
+    {
+        return $this->table_id === $tableId && $this->device_id === $deviceId;
+    }
+
+    /**
+     * Check if order can be cancelled
+     */
+    public function canBeCancelled(): bool
+    {
+        return $this->status === 'received';
+    }
+
+    /**
      * Update order status with timestamp
      */
     public function updateStatus(string $status): bool
@@ -177,5 +219,13 @@ class Order extends Model
         } while (self::where('order_number', $orderNumber)->exists());
 
         return $orderNumber;
+    }
+
+    /**
+     * Get the table that owns the order
+     */
+    public function table()
+    {
+        return $this->belongsTo(Table::class);
     }
 }

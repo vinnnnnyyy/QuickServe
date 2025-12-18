@@ -14,7 +14,7 @@ class MenuController extends Controller
      */
     public function index()
     {
-        $menuItems = MenuItem::with('category')->get();
+        $menuItems = MenuItem::with(['category', 'addons'])->get();
         return response()->json($menuItems);
     }
 
@@ -37,6 +37,9 @@ class MenuController extends Controller
             'available' => 'required|boolean',
             'image_path' => 'nullable|string',
             'notes' => 'nullable|string',
+            'ingredients' => 'nullable|array',
+            'ingredients.*.id' => 'required_with:ingredients|exists:inventory_items,id',
+            'ingredients.*.quantity' => 'required_with:ingredients|numeric|min:0.0001',
         ]);
 
         if ($validator->fails()) {
@@ -59,8 +62,20 @@ class MenuController extends Controller
 
         $menuItem = MenuItem::create($data);
         
-        // Load the category relationship
-        $menuItem->load('category');
+        // Handle ingredients (Recipe)
+        if ($request->has('ingredients')) {
+            $ingredients = [];
+            foreach ($request->ingredients as $ing) {
+                // $ing should be { id: 1, quantity: 0.5 }
+                if (isset($ing['id']) && isset($ing['quantity'])) {
+                    $ingredients[$ing['id']] = ['quantity' => $ing['quantity']];
+                }
+            }
+            $menuItem->ingredients()->sync($ingredients);
+        }
+        
+        // Load the relationship
+        $menuItem->load(['category', 'addons', 'ingredients']);
 
         return response()->json($menuItem, 201);
     }
@@ -70,7 +85,7 @@ class MenuController extends Controller
      */
     public function show(string $id)
     {
-        $menuItem = MenuItem::with('category')->find($id);
+        $menuItem = MenuItem::with(['category', 'addons'])->find($id);
         
         if (!$menuItem) {
             return response()->json(['message' => 'Menu item not found'], 404);
@@ -104,6 +119,9 @@ class MenuController extends Controller
             'available' => 'sometimes|required|boolean',
             'image_path' => 'nullable|string',
             'notes' => 'nullable|string',
+            'ingredients' => 'nullable|array',
+            'ingredients.*.id' => 'required_with:ingredients|exists:inventory_items,id',
+            'ingredients.*.quantity' => 'required_with:ingredients|numeric|min:0.0001',
         ]);
 
         if ($validator->fails()) {
@@ -122,8 +140,19 @@ class MenuController extends Controller
 
         $menuItem->update($data);
         
-        // Reload the category relationship
-        $menuItem->load('category');
+        // Handle ingredients (Recipe)
+        if ($request->has('ingredients')) {
+            $ingredients = [];
+            foreach ($request->ingredients as $ing) {
+                if (isset($ing['id']) && isset($ing['quantity'])) {
+                    $ingredients[$ing['id']] = ['quantity' => $ing['quantity']];
+                }
+            }
+            $menuItem->ingredients()->sync($ingredients);
+        }
+        
+        // Reload the relationships
+        $menuItem->load(['category', 'addons', 'ingredients']);
 
         return response()->json($menuItem);
     }
@@ -149,7 +178,7 @@ class MenuController extends Controller
      */
     public function byCategory(string $category)
     {
-        $menuItems = MenuItem::with('category')
+        $menuItems = MenuItem::with(['category', 'addons'])
             ->whereHas('category', function ($query) use ($category) {
                 $query->where('name', $category)
                       ->orWhere('id', $category);

@@ -9,204 +9,329 @@ const props = defineProps({
         default: () => ({
             name: 'Caramel Macchiato',
             price: 4.75,
-            image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAWWVCNFSHrPEl0siJRGmzZ2Uy5IfyLh_EXrYFe4BxeZ56_r_V3PWt2IzifrjZJpL3ulfexN9cuFP2hO0G7wPbap9-nZ5oJp6ORy4Qetogp5Nm6LU_G5xqEmLlVgeI_UvAgVGLqdhRfi7DULFYUsxaZk8XeFX3xYWiQdClhK4p3YBL1s3P27Q0WBn_1u0XaYZF6vi_zqSlNsQlQOx7kd48C58uzs6ZT_gtSr6kXhm4MCkdv_P9rcX_oeoEHsedvDwet6zGFiGWCMGU '
+            image: null,
+            size_labels: ['Small', 'Medium', 'Large'],
+            addons: []
         })
     }
 });
 
 const emit = defineEmits(['close', 'add-to-cart']);
 
-/* ----------  state  ---------- */
-const selectedSize = ref('medium');
-const selectedMilk = ref('whole');
-const vanillaPumps = ref(2);
-const caramelPumps = ref(0);
+const selectedSize = ref(null);
+const selectedAddons = ref({});
 
-/* ----------  options  ---------- */
-const sizeOptions = {
-    small:  { name: 'Small',  price: 0.00 },
-    medium: { name: 'Medium', price: 0.50 },
-    large:  { name: 'Large',  price: 1.00 }
-};
-const milkOptions = {
-    whole: { name: 'Whole Milk', price: 0.00 },
-    almond: { name: 'Almond Milk', price: 0.80 },
-    oat:    { name: 'Oat Milk',   price: 0.80 }
-};
-const syrupOptions = {
-    vanilla: { name: 'Pumps Vanilla Syrup', pricePerPump: 0.25 },
-    caramel: { name: 'Pumps Caramel Syrup', pricePerPump: 0.25 }
-};
-
-/* ----------  prices  ---------- */
-const sizePrice    = computed(() => sizeOptions[selectedSize.value]?.price   ?? 0);
-const milkPrice    = computed(() => milkOptions[selectedMilk.value]?.price   ?? 0);
-const vanillaPrice = computed(() => vanillaPumps.value * syrupOptions.vanilla.pricePerPump);
-const caramelPrice = computed(() => caramelPumps.value * syrupOptions.caramel.pricePerPump);
-const totalPrice   = computed(() => {
-    const base = props.product?.price ?? 0;
-    return base + sizePrice.value + milkPrice.value + vanillaPrice.value + caramelPrice.value;
+const sizeOptions = computed(() => {
+    const labels = props.product?.size_labels || ['Small', 'Medium', 'Large'];
+    const prices = {
+        'Small': 0,
+        'Medium': 0.50,
+        'Large': 1.00,
+        'Regular': 0,
+        'XS': 0,
+        'S': 0.25,
+        'M': 0.50,
+        'L': 0.75,
+        'XL': 1.00
+    };
+    
+    return labels.reduce((acc, label, index) => {
+        acc[label.toLowerCase().replace(/\s+/g, '_')] = {
+            name: label,
+            price: prices[label] ?? (index * 0.50)
+        };
+        return acc;
+    }, {});
 });
 
-/* ----------  methods  ---------- */
+const groupedAddons = computed(() => {
+    const addons = props.product?.addons || [];
+    const groups = {};
+    
+    addons.forEach(addon => {
+        if (!addon.available) return;
+        const category = addon.category || 'Extras';
+        if (!groups[category]) {
+            groups[category] = [];
+        }
+        groups[category].push(addon);
+    });
+    
+    return groups;
+});
+
+const hasAddons = computed(() => {
+    return Object.keys(groupedAddons.value).length > 0;
+});
+
+const getCategoryIcon = (category) => {
+    const icons = {
+        'Milk': 'fa-droplet',
+        'Extras': 'fa-plus-circle',
+        'Toppings': 'fa-cookie-bite',
+        'Syrups': 'fa-flask',
+        'Sweeteners': 'fa-cubes'
+    };
+    return icons[category] || 'fa-circle-plus';
+};
+
+const sizePrice = computed(() => {
+    if (!selectedSize.value) return 0;
+    return sizeOptions.value[selectedSize.value]?.price ?? 0;
+});
+
+const addonsPrice = computed(() => {
+    let total = 0;
+    Object.entries(selectedAddons.value).forEach(([addonId, quantity]) => {
+        const addon = props.product?.addons?.find(a => a.id === parseInt(addonId));
+        if (addon && quantity > 0) {
+            total += (addon.price_formatted || addon.price / 100) * quantity;
+        }
+    });
+    return total;
+});
+
+const totalPrice = computed(() => {
+    const base = props.product?.price_formatted ?? props.product?.price ?? 0;
+    return base + sizePrice.value + addonsPrice.value;
+});
+
 const handleClose = () => emit('close');
-const addToOrder  = () => {
+
+const addToOrder = () => {
+    const selectedAddonsList = [];
+    Object.entries(selectedAddons.value).forEach(([addonId, quantity]) => {
+        if (quantity > 0) {
+            const addon = props.product?.addons?.find(a => a.id === parseInt(addonId));
+            if (addon) {
+                selectedAddonsList.push({
+                    id: addon.id,
+                    name: addon.name,
+                    quantity: quantity,
+                    price: addon.price_formatted || addon.price / 100
+                });
+            }
+        }
+    });
+
     emit('add-to-cart', {
         ...props.product,
         customizations: {
-            size: selectedSize.value,
-            milk: selectedMilk.value,
-            syrups: { vanilla: vanillaPumps.value, caramel: caramelPumps.value }
+            size: selectedSize.value ? sizeOptions.value[selectedSize.value]?.name : null,
+            sizeKey: selectedSize.value,
+            addons: selectedAddonsList
         },
         totalPrice: totalPrice.value
     });
     handleClose();
 };
-const incSyrup = s => { if (s==='vanilla') vanillaPumps++; if (s==='caramel') caramelPumps++; };
-const decSyrup = s => {
-    if (s==='vanilla' && vanillaPumps.value>0) vanillaPumps--;
-    if (s==='caramel' && caramelPumps.value>0) caramelPumps--;
-};
-const formatCurrency = v => `$${v.toFixed(2)}`;
 
-/* ----------  reset on open  ---------- */
+const incrementAddon = (addonId, maxQty) => {
+    const current = selectedAddons.value[addonId] || 0;
+    if (current < maxQty) {
+        selectedAddons.value[addonId] = current + 1;
+    }
+};
+
+const decrementAddon = (addonId) => {
+    const current = selectedAddons.value[addonId] || 0;
+    if (current > 0) {
+        selectedAddons.value[addonId] = current - 1;
+    }
+};
+
+const getAddonQuantity = (addonId) => {
+    return selectedAddons.value[addonId] || 0;
+};
+
+const formatCurrency = v => `₱${v.toFixed(2)}`;
+
 watch(() => props.show, v => {
     if (!v) return;
-    selectedSize.value = 'medium';
-    selectedMilk.value = 'whole';
-    vanillaPumps.value = 2;
-    caramelPumps.value = 0;
+    const sizeKeys = Object.keys(sizeOptions.value);
+    selectedSize.value = sizeKeys.length > 1 ? sizeKeys[1] : sizeKeys[0];
+    selectedAddons.value = {};
 });
 </script>
 
 <template>
-  <Modal :show="show" max-width="4xl" @close="handleClose">
-    <div class="layout-content-container flex flex-col w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white max-h-[90vh] overflow-hidden">
+  <Modal :show="show" max-width="5xl" @close="handleClose">
+    <div v-if="product" class="flex flex-col lg:flex-row w-full bg-white dark:bg-surface-900 text-surface-900 dark:text-white h-[90vh] sm:h-[85vh] lg:h-[80vh] overflow-hidden sm:rounded-2xl shadow-2xl">
+      
+      <!-- Close Button (Mobile/Tablet) -->
+      <button @click="handleClose" class="lg:hidden absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-all backdrop-blur-sm">
+        <i class="fas fa-times text-sm"></i>
+      </button>
 
-      <!--  Header  -->
-      <div class="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 class="text-xl sm:text-2xl font-bold">Customize {{ product.name }}</h2>
-        <button @click="handleClose" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-
-      <!--  Body  -->
-      <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
-        <!--  Left: customisation  -->
-        <div class="w-full md:w-3/5 p-4 sm:p-6 overflow-y-auto">
-          <!--  Size  -->
-          <details class="border-t border-gray-200 dark:border-gray-700 py-2 group" open>
-            <summary class="flex cursor-pointer items-center justify-between py-2">
-              <p class="text-base font-medium">Size</p>
-              <i class="fas fa-chevron-down text-sm transition-transform group-open:rotate-180"></i>
-            </summary>
-            <div class="pb-2 space-y-3 pt-2">
-              <label v-for="(d,k) in sizeOptions" :key="k"
-                     class="flex items-center gap-4 p-3 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/10">
-                <input v-model="selectedSize" :value="k" type="radio" name="size" class="form-radio text-primary focus:ring-primary/50">
-                <span class="flex-1">{{ d.name }}</span>
-                <span class="text-sm font-medium">+{{ formatCurrency(d.price) }}</span>
-              </label>
-            </div>
-          </details>
-
-          <!--  Milk  -->
-          <details class="border-t border-gray-200 dark:border-gray-700 py-2 group" open>
-            <summary class="flex cursor-pointer items-center justify-between py-2">
-              <p class="text-base font-medium">Milk Options</p>
-              <i class="fas fa-chevron-down text-sm transition-transform group-open:rotate-180"></i>
-            </summary>
-            <div class="pb-2 space-y-3 pt-2">
-              <label v-for="(d,k) in milkOptions" :key="k"
-                     class="flex items-center gap-4 p-3 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/10">
-                <input v-model="selectedMilk" :value="k" type="radio" name="milk" class="form-radio text-primary focus:ring-primary/50">
-                <span class="flex-1">{{ d.name }}</span>
-                <span class="text-sm font-medium">+{{ formatCurrency(d.price) }}</span>
-              </label>
-            </div>
-          </details>
-
-          <!--  Syrups  -->
-          <details class="border-t border-gray-200 dark:border-gray-700 py-2 group" open>
-            <summary class="flex cursor-pointer items-center justify-between py-2">
-              <p class="text-base font-medium">Syrups & Sweeteners</p>
-              <i class="fas fa-chevron-down text-sm transition-transform group-open:rotate-180"></i>
-            </summary>
-            <div class="pb-2 space-y-3 pt-2">
-              <div class="flex items-center justify-between gap-4 p-3 border border-gray-300 dark:border-gray-600 rounded-lg">
-                <span class="flex-1">Vanilla Syrup</span>
-                <div class="flex items-center gap-3">
-                  <button @click="decSyrup('vanilla')" class="w-7 h-7 rounded-full bg-primary/20 text-primary hover:bg-primary/30"><i class="fas fa-minus text-xs"></i></button>
-                  <span class="font-medium w-4 text-center">{{ vanillaPumps }}</span>
-                  <button @click="incSyrup('vanilla')" class="w-7 h-7 rounded-full bg-primary/20 text-primary hover:bg-primary/30"><i class="fas fa-plus text-xs"></i></button>
-                </div>
-              </div>
-              <div class="flex items-center justify-between gap-4 p-3 border border-gray-300 dark:border-gray-600 rounded-lg">
-                <span class="flex-1">Caramel Syrup</span>
-                <div class="flex items-center gap-3">
-                  <button @click="decSyrup('caramel')" class="w-7 h-7 rounded-full bg-primary/20 text-primary hover:bg-primary/30"><i class="fas fa-minus text-xs"></i></button>
-                  <span class="font-medium w-4 text-center">{{ caramelPumps }}</span>
-                  <button @click="incSyrup('caramel')" class="w-7 h-7 rounded-full bg-primary/20 text-primary hover:bg-primary/30"><i class="fas fa-plus text-xs"></i></button>
-                </div>
-              </div>
-            </div>
-          </details>
+      <!-- LEFT COLUMN: Image & Scrollable Content -->
+      <div class="w-full lg:w-3/5 flex flex-col flex-1 lg:flex-none lg:h-full relative min-h-0">
+        <!-- Image Area -->
+        <div class="relative w-full h-48 sm:h-64 lg:h-72 shrink-0 bg-surface-100 dark:bg-surface-800 group overflow-hidden">
+          <img :src="product.image_url || product.image" :alt="product.name" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent lg:hidden"></div>
+           <div class="absolute bottom-4 left-4 lg:hidden text-white drop-shadow-md">
+              <h2 class="text-2xl font-bold leading-tight">{{ product.name }}</h2>
+              <p class="text-sm opacity-90 line-clamp-1">{{ product.description }}</p>
+           </div>
         </div>
 
-        <!--  Right: summary (FIRST-modal style)  -->
-        <div class="w-full md:w-2/5 p-4 sm:p-6 bg-gray-50 dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col">
-          <div class="flex-1 space-y-4">
-            <!--  image  -->
-            <div class="w-full bg-center bg-no-repeat bg-cover rounded-lg min-h-48"
-                 :style="{backgroundImage:`url('${product.image}')`}"></div>
+        <!-- Scrollable Options -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-surface-50/50 dark:bg-surface-900">
+           <!-- Title (Desktop) -->
+           <div class="hidden lg:block">
+              <h2 class="text-3xl font-bold font-display text-surface-900 dark:text-white mb-2">{{ product.name }}</h2>
+              <p class="text-surface-600 dark:text-surface-400 leading-relaxed max-w-2xl">{{ product.description }}</p>
+           </div>
 
-            <!--  name + description (like first modal)  -->
-            <div>
-              <h3 class="text-lg font-bold">{{ product.name }}</h3>
-              <p class="text-sm text-gray-600 leading-relaxed mt-2">{{ product.description }}</p>
-            </div>
+           <!-- Sizes -->
+           <div v-if="Object.keys(sizeOptions).length > 0" class="animate-fade-in-up" style="animation-delay: 0.1s;">
+              <div class="flex items-center justify-between mb-4">
+                 <h3 class="text-lg font-bold text-surface-900 dark:text-white flex items-center gap-2">
+                    <span class="w-1 h-6 bg-primary rounded-full"></span>
+                    Select Size
+                 </h3>
+                 <span class="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full uppercase tracking-wider">Required</span>
+              </div>
+              
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <label v-for="(d, k) in sizeOptions" :key="k"
+                       class="relative flex flex-col items-center justify-center p-4 border rounded-xl cursor-pointer transition-all duration-200 group hover:shadow-md"
+                       :class="selectedSize === k 
+                         ? 'border-primary bg-primary/5 dark:bg-primary/10 ring-1 ring-primary ring-opacity-50' 
+                         : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-surface-300 dark:hover:border-surface-600'">
+                  <input v-model="selectedSize" :value="k" type="radio" name="size" class="sr-only">
+                  <div class="w-full text-center">
+                     <span class="block text-sm font-bold mb-1 group-hover:text-primary transition-colors" :class="selectedSize === k ? 'text-primary' : 'text-surface-900 dark:text-white'">{{ d.name }}</span>
+                     <span class="block text-xs font-medium" :class="selectedSize === k ? 'text-primary' : 'text-surface-500'">
+                       {{ d.price > 0 ? '+' + formatCurrency(d.price) : 'Free' }}
+                     </span>
+                  </div>
+                  <!-- Checkmark -->
+                  <div v-if="selectedSize === k" class="absolute top-2 right-2 text-primary">
+                    <i class="fas fa-check-circle text-sm"></i>
+                  </div>
+                </label>
+              </div>
+           </div>
 
-            <!--  price breakdown  -->
-            <div class="space-y-2 border-b border-gray-200 dark:border-gray-700 pb-3">
-              <div class="flex justify-between gap-x-6">
-                <p class="text-sm">{{ product.name }}</p>
-                <p class="text-sm text-right">{{ formatCurrency(product.price) }}</p>
-              </div>
-              <div v-if="sizePrice>0" class="flex justify-between gap-x-6">
-                <p class="text-sm">{{ sizeOptions[selectedSize].name }}</p>
-                <p class="text-sm text-right">+{{ formatCurrency(sizePrice) }}</p>
-              </div>
-              <div v-if="milkPrice>0" class="flex justify-between gap-x-6">
-                <p class="text-sm">{{ milkOptions[selectedMilk].name }}</p>
-                <p class="text-sm text-right">+{{ formatCurrency(milkPrice) }}</p>
-              </div>
-              <div v-if="vanillaPumps>0" class="flex justify-between gap-x-6">
-                <p class="text-sm">{{ vanillaPumps }} {{ syrupOptions.vanilla.name }}</p>
-                <p class="text-sm text-right">+{{ formatCurrency(vanillaPrice) }}</p>
-              </div>
-              <div v-if="caramelPumps>0" class="flex justify-between gap-x-6">
-                <p class="text-sm">{{ caramelPumps }} {{ syrupOptions.caramel.name }}</p>
-                <p class="text-sm text-right">+{{ formatCurrency(caramelPrice) }}</p>
-              </div>
-            </div>
+           <!-- Addons -->
+           <div v-if="hasAddons" class="space-y-6 animate-fade-in-up" style="animation-delay: 0.2s;">
+              <div v-for="(addons, category) in groupedAddons" :key="category" class="p-5 bg-white dark:bg-surface-800/50 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm">
+                <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4 flex items-center gap-2">
+                  <i :class="['fas', getCategoryIcon(category), 'text-primary']"></i>
+                  {{ category }}
+                </h3>
+                <div class="space-y-3">
+                  <div v-for="addon in addons" :key="addon.id"
+                       class="flex items-center justify-between p-3 rounded-xl transition-all hover:bg-surface-50 dark:hover:bg-surface-700/50 group"
+                       :class="getAddonQuantity(addon.id) > 0 ? 'bg-primary/5 dark:bg-primary/10 border-transparent' : 'bg-transparent'">
+                    
+                    <!-- Addon Info -->
+                    <div class="flex-1 pr-4">
+                      <div class="flex items-baseline gap-2">
+                         <span class="font-medium text-surface-900 dark:text-white group-hover:text-primary transition-colors">{{ addon.name }}</span>
+                         <span class="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">+{{ formatCurrency(addon.price_formatted || addon.price / 100) }}</span>
+                      </div>
+                      <p v-if="addon.description" class="text-xs text-surface-500 dark:text-surface-400 mt-0.5 line-clamp-1">{{ addon.description }}</p>
+                    </div>
 
-            <!--  total  -->
-            <div class="flex justify-between gap-x-6 pt-1">
-              <p class="text-base font-bold">Total</p>
-              <p class="text-lg font-bold text-right">{{ formatCurrency(totalPrice) }}</p>
-            </div>
-          </div>
+                    <!-- Quantity Controls -->
+                    <div class="flex items-center gap-3 bg-white dark:bg-surface-900 rounded-lg shadow-sm border border-surface-200 dark:border-surface-700 p-1">
+                      <button @click="decrementAddon(addon.id)" 
+                              type="button"
+                              class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors disabled:opacity-30"
+                              :disabled="getAddonQuantity(addon.id) === 0">
+                        <i class="fas fa-minus text-xs"></i>
+                      </button>
+                      <span class="text-sm font-bold w-4 text-center text-surface-900 dark:text-white">{{ getAddonQuantity(addon.id) }}</span>
+                      <button @click="incrementAddon(addon.id, addon.max_quantity || 5)" 
+                              type="button"
+                              class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-surface-100 dark:hover:bg-surface-700 text-primary transition-colors disabled:opacity-30"
+                              :disabled="getAddonQuantity(addon.id) >= (addon.max_quantity || 5)">
+                        <i class="fas fa-plus text-xs"></i>
+                      </button>
+                    </div>
 
-          <!--  button  -->
-          <div class="mt-6">
-            <button @click="addToOrder"
-                    class="w-full bg-primary text-white font-bold py-3 px-6 rounded-lg hover:bg-primary/90 transition-colors">
-              Add to Order
-            </button>
-          </div>
+                  </div>
+                </div>
+              </div>
+           </div>
+
+           <!-- No Options Fallback -->
+           <div v-if="!hasAddons && Object.keys(sizeOptions).length === 0" class="text-center py-12">
+              <div class="w-16 h-16 rounded-full bg-surface-100 dark:bg-surface-800 mx-auto flex items-center justify-center mb-4 text-surface-400">
+                  <i class="fas fa-star text-2xl"></i>
+              </div>
+              <p class="text-surface-900 dark:text-white font-medium">No customizations available</p>
+              <p class="text-sm text-surface-500">This item comes as is.</p>
+           </div>
         </div>
       </div>
+
+      <!-- RIGHT COLUMN: Summary & Actions (Sticky on Desktop) -->
+      <div class="flex-none lg:flex-1 lg:w-2/5 flex flex-col bg-surface-50 dark:bg-surface-900/90 border-t lg:border-t-0 lg:border-l border-surface-200 dark:border-surface-700 z-10 shadow-[-5px_0_15px_-5px_rgba(0,0,0,0.05)]">
+        
+        <!-- Desktop Close -->
+        <div class="hidden lg:flex justify-end p-4 pb-0">
+           <button @click="handleClose" class="text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors p-2">
+               <span class="sr-only">Close</span>
+               <i class="fas fa-times text-xl"></i>
+           </button>
+        </div>
+
+        <div class="flex-1 flex flex-col p-6 lg:p-8 overflow-hidden">
+           <h3 class="text-xl font-bold font-display text-surface-900 dark:text-white mb-6 hidden lg:block">Order Summary</h3>
+
+           <!-- Itemized List (Desktop: Scrollable, Mobile: Hidden/Compact) -->
+           <div class="hidden lg:block flex-1 overflow-y-auto space-y-3 lg:pr-2 custom-scrollbar mb-6">
+              <!-- Base Item -->
+              <div class="flex justify-between items-start py-2 border-b border-dashed border-surface-200 dark:border-surface-700">
+                  <span class="text-sm text-surface-600 dark:text-surface-300">Base Price</span>
+                  <span class="text-sm font-semibold text-surface-900 dark:text-white">{{ formatCurrency(product?.price_formatted ?? product?.price ?? 0) }}</span>
+              </div>
+              
+              <!-- Size -->
+              <div v-if="sizePrice > 0" class="flex justify-between items-start py-2 border-b border-dashed border-surface-200 dark:border-surface-700 animate-fade-in-left">
+                  <span class="text-sm text-surface-600 dark:text-surface-300">Size: <span class="font-medium text-primary">{{ sizeOptions[selectedSize]?.name }}</span></span>
+                  <span class="text-sm font-semibold text-primary">+{{ formatCurrency(sizePrice) }}</span>
+              </div>
+
+               <!-- Addons List -->
+               <transition-group name="list" tag="div" class="space-y-2">
+                  <template v-for="(quantity, addonId) in selectedAddons" :key="addonId">
+                    <div v-if="quantity > 0" class="flex justify-between items-start py-2 border-b border-dashed border-surface-200 dark:border-surface-700">
+                      <div class="flex flex-col">
+                         <span class="text-sm text-surface-600 dark:text-surface-300">{{ product.addons?.find(a => a.id === parseInt(addonId))?.name }}</span>
+                         <span class="text-xs text-surface-400">x{{ quantity }}</span>
+                      </div>
+                      <span class="text-sm font-semibold text-primary">
+                        +{{ formatCurrency((product.addons?.find(a => a.id === parseInt(addonId))?.price_formatted || 0) * quantity) }}
+                      </span>
+                    </div>
+                  </template>
+               </transition-group>
+               
+               <div v-if="addonsPrice === 0 && sizePrice === 0" class="text-center py-4 text-xs text-surface-400 italic">
+                  No customizations selected
+               </div>
+           </div>
+
+           <!-- Totals & Actions -->
+           <div class="mt-auto pt-4 border-t border-surface-200 dark:border-surface-700 space-y-4">
+              <div class="flex justify-between items-end mb-2">
+                 <span class="text-surface-500 dark:text-surface-400 font-medium">Total Amount</span>
+                 <span class="text-3xl font-bold text-primary tracking-tight font-display">{{ formatCurrency(totalPrice) }}</span>
+              </div>
+
+              <button @click="addToOrder" type="button"
+                  class="w-full bg-primary text-white font-bold text-lg py-4 px-6 rounded-xl hover:bg-primary-600 active:scale-[0.98] transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-3 group">
+                   <i class="fas fa-shopping-bag group-hover:-translate-y-0.5 transition-transform"></i>
+                   Add to Order
+              </button>
+           </div>
+        </div>
+      </div>
+      
     </div>
   </Modal>
 </template>

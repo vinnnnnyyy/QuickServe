@@ -4,141 +4,41 @@ import Pagination from '@/Components/Admin/UI/Pagination.vue';
 import AdminModal from '@/Components/Admin/UI/AdminModal.vue';
 import CardWrapper from '@/Components/Admin/UI/CardWrapper.vue';
 import TableActionsDropdown from '@/Components/Admin/UI/TableActionsDropdown.vue';
+import OrderStatusBadge from '@/Components/Admin/UI/OrderStatusBadge.vue';
+import OrderTypeBadge from '@/Components/Admin/UI/OrderTypeBadge.vue';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 
+const activeTab = ref('all');
+
+const tabs = [
+  { id: 'all', label: 'All Orders', icon: 'fas fa-list' },
+  { id: 'kitchen', label: 'Kitchen', icon: 'fas fa-fire', count: 0 },
+  { id: 'individual', label: 'Individual', icon: 'fas fa-user' },
+  { id: 'group', label: 'One Bill', icon: 'fas fa-users' },
+];
+
+// Helper to determine if order is Group (One Bill)
+const isGroupOrder = (order) => {
+    // Logic: If order has "One Bill" tag or multiple distinct users adding items
+    // For now, checks if tableType implies a group setting or metadata
+    return order.orderType === 'Group' || order.isGroup; 
+};
+
 // Order data from API
 const orders = ref([
-  // Fallback sample data for backward compatibility
+  // Fallback sample data if API fails or for initial render
   {
     id: 'A001',
     sessionId: '#1247',
     tableType: 'Table 5',
     orderType: 'Dine In',
-    deviceInfo: {
-      ip: '192.168.1.45',
-      type: 'Mobile Device'
-    },
-    items: {
-      count: 3,
-      description: 'Latte (Large, Oat), Croissant, Muffin'
-    },
+    items: { count: 3, description: 'Burger, Fries, Coke' },
     total: 18.90,
-    tax: 1.89,
-    payment: {
-      status: 'Unpaid',
-      method: '',
-      color: 'red'
-    },
-    status: {
-      text: 'Preparing',
-      color: 'yellow'
-    },
-    time: '5 min ago'
-  },
-  {
-    id: 'A002',
-    sessionId: '#1248',
-    tableType: 'Takeaway',
-    orderType: 'Counter',
-    deviceInfo: {
-      ip: '192.168.1.67',
-      type: 'Tablet Device'
-    },
-    items: {
-      count: 1,
-      description: 'Americano (Medium)'
-    },
-    total: 4.95,
-    tax: 0.45,
-    payment: {
-      status: 'Paid (Card)',
-      method: 'Card',
-      color: 'green'
-    },
-    status: {
-      text: 'Ready',
-      color: 'purple'
-    },
-    time: '2 min ago'
-  },
-  {
-    id: 'A003',
-    sessionId: '#1249',
-    tableType: 'Table 12',
-    orderType: 'Dine In',
-    deviceInfo: {
-      ip: '192.168.1.89',
-      type: 'Laptop Device'
-    },
-    items: {
-      count: 2,
-      description: 'Cappuccino (Large), Sandwich'
-    },
-    total: 13.75,
-    tax: 1.25,
-    payment: {
-      status: 'Pending',
-      method: '',
-      color: 'orange'
-    },
-    status: {
-      text: 'Confirmed',
-      color: 'blue'
-    },
-    time: '1 min ago'
-  },
-  {
-    id: 'A004',
-    sessionId: '#1250',
-    tableType: 'Table 8',
-    orderType: 'Dine In',
-    deviceInfo: {
-      ip: '192.168.1.56',
-      type: 'Tablet Device'
-    },
-    items: {
-      count: 4,
-      description: '2x Latte, Bagel, Pastry'
-    },
-    total: 27.23,
-    tax: 2.48,
-    payment: {
-      status: 'Paid (E-Wallet)',
-      method: 'E-Wallet',
-      color: 'green'
-    },
-    status: {
-      text: 'Completed',
-      color: 'green'
-    },
-    time: '15 min ago'
-  },
-  {
-    id: 'A005',
-    sessionId: '#1251',
-    tableType: 'Table 3',
-    orderType: 'Dine In',
-    deviceInfo: {
-      ip: '192.168.1.23',
-      type: 'Mobile Device'
-    },
-    items: {
-      count: 1,
-      description: 'Espresso (Double)'
-    },
-    total: 3.85,
-    tax: 0.35,
-    payment: {
-      status: 'Paid (QR)',
-      method: 'QR',
-      color: 'green'
-    },
-    status: {
-      text: 'Pending',
-      color: 'orange'
-    },
-    time: '30 sec ago'
+    status: { text: 'Ready', color: 'purple' },
+    payment: { status: 'Unpaid', color: 'red' },
+    time: '5 min ago',
+    rawStatus: 'ready'
   }
 ]);
 
@@ -179,13 +79,27 @@ const fetchOrders = async () => {
       const isInCents = order.total > 1000 || (order.original_data && order.total > order.items?.reduce((sum, item) => sum + (item.price || 0), 0) * 10)
       const displayTotal = isInCents ? order.total / 100 : parseFloat(order.total) || 0
       
-      // Handle new checkout format orders
+        // Handle new checkout format orders
       if (order.original_data) {
+        // Determine payment status display
+        const isPaid = order.payment_status === 'paid';
+        let paymentStatusText = 'Pending';
+        let paymentColor = 'red';
+
+        if (isPaid) {
+           paymentStatusText = `Paid (${order.payment_method === 'gcash' ? 'GCash' : 'Cash'})`;
+           paymentColor = 'green';
+        } else if (order.payment_method === 'cash') {
+           paymentStatusText = 'Pay Cash';
+           paymentColor = 'orange';
+        }
+
         return {
           id: order.order_number || order.id,
           sessionId: `#${order.id.toString().slice(-4)}`,
-          tableType: order.table_number || 'Table 1',
-          orderType: 'Customer Order',
+          tableType: order.table?.number ? `Table ${order.table.number}` : (order.table_number || 'Table 1'),
+          orderType: order.original_data.is_group_order ? 'Group' : 'Customer Order',
+          isGroup: !!order.original_data.is_group_order,
           deviceInfo: {
             ip: 'Customer Device',
             type: 'Mobile/Web'
@@ -199,9 +113,9 @@ const fetchOrders = async () => {
           total: displayTotal,
           tax: 0, // Tax not included in checkout orders
           payment: {
-            status: order.payment_method === 'cash' ? 'Pay Cash' : 'Paid (GCash)',
+            status: paymentStatusText,
             method: order.payment_method,
-            color: order.payment_method === 'cash' ? 'orange' : 'green'
+            color: paymentColor
           },
           status: {
             text: capitalizeStatus(order.status),
@@ -213,7 +127,7 @@ const fetchOrders = async () => {
           // Add raw status for debugging
           rawStatus: order.status
         }
-        } else {
+      } else {
         // Handle legacy admin format orders
         return {
           id: order.order_number || order.id,
@@ -365,6 +279,52 @@ const updateOrderStatus = async (displayOrderId, newStatus) => {
   }
 }
 
+// Mark order as paid
+const markOrderAsPaid = async (displayOrderId) => {
+  try {
+    // Find the order by display ID
+    const order = orders.value.find(o => o.id === displayOrderId)
+    if (!order) {
+      alert('Order not found')
+      return
+    }
+    
+    const databaseOrderId = order.originalOrder?.id || order.id
+    
+    const response = await fetch(`/api/orders/${databaseOrderId}/payment`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+      }
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to mark order as paid: ${response.status} - ${errorText}`)
+    }
+    
+    // Update local order
+    const isCash = order.payment.method === 'cash'
+    order.payment.status = `Paid (${isCash ? 'Cash' : (order.payment.method === 'gcash' ? 'GCash' : 'Other')})`
+    order.payment.color = 'green'
+    
+    // Update status to confirmed locally (to match backend auto-confirm)
+    if (order.rawStatus === 'received') {
+        order.status = {
+          text: 'Confirmed',
+          color: getStatusColor('confirmed')
+        }
+        order.rawStatus = 'confirmed'
+    }
+    
+  } catch (err) {
+    console.error('Error marking order as paid:', err)
+    alert('Failed to mark order as paid: ' + err.message)
+  }
+}
+
 // Auto-refresh functionality
 const autoRefreshEnabled = ref(true)
 const autoRefreshInterval = ref(null)
@@ -457,22 +417,18 @@ const orderHasCategory = (order, category) => {
 const filteredOrders = computed(() => {
   const q = normalized(searchQuery.value)
   return orders.value.filter(o => {
-    // type filter
-    if (typeFilter.value !== 'all') {
-      const isDineIn = o.orderType === 'Dine In'
-      if (typeFilter.value === 'dine_in' && !isDineIn) return false
-      if (typeFilter.value === 'takeout' && isDineIn) return false
+    // Tab Filter
+    if (activeTab.value === 'kitchen') {
+        if (!['queued', 'preparing'].includes(o.rawStatus || normalized(o.status?.text))) return false;
+    } else if (activeTab.value === 'individual') {
+        if (isGroupOrder(o)) return false;
+    } else if (activeTab.value === 'group') {
+        if (!isGroupOrder(o)) return false;
     }
-    // category filter
-    if (!orderHasCategory(o, categoryFilter.value)) return false
-    // status filter
-    if (activeStatus.value !== 'all') {
-      const s = (o.rawStatus || normalized(o.status?.text)).toLowerCase()
-      if (s !== activeStatus.value) return false
-    }
-    // search filter
+
+    // Existing search filter
     if (!q) return true
-    const hay = [o.id, o.sessionId, o.tableType, o.orderType, o.deviceInfo?.ip, o.deviceInfo?.type, o.items?.description, o.payment?.method]
+    const hay = [o.id, o.sessionId, o.tableType, o.orderType, o.customerName, o.items?.description]
       .map(v => normalized(v)).join(' ')
     return hay.includes(q)
   })
@@ -505,6 +461,7 @@ const sortedOrders = computed(() => {
 const currentPage = ref(1);
 const itemsPerPage = ref(5); // 5 orders per page
 const totalItems = computed(() => sortedOrders.value.length)
+const pageLoading = ref(false)
 
 // Computed property for displayed orders
 const paginatedOrders = computed(() => {
@@ -513,22 +470,23 @@ const paginatedOrders = computed(() => {
 });
 
 // Handle page change
-const handlePageChange = (page) => {
+const handlePageChange = async (page) => {
+  pageLoading.value = true;
+  await new Promise(resolve => setTimeout(resolve, 300));
   currentPage.value = page;
-  // In a real app, you would fetch data for the new page here
-  console.log('Orders page changed to:', page);
+  pageLoading.value = false;
 };
 
 const getStatusClasses = (color) => {
   const colorMap = {
-    yellow: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400',
-    green: 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400',
-    blue: 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400',
-    purple: 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400',
-    orange: 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400',
-    red: 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    green: 'text-green-600 dark:text-green-400',
+    blue: 'text-blue-600 dark:text-blue-400',
+    purple: 'text-purple-600 dark:text-purple-400',
+    orange: 'text-orange-600 dark:text-orange-400',
+    red: 'text-red-600 dark:text-red-400'
   };
-  return colorMap[color] || colorMap.gray;
+  return colorMap[color] || 'text-gray-600 dark:text-gray-400';
 };
 
 const getStatusDotClasses = (color) => {
@@ -569,6 +527,18 @@ const editOrder = (orderId) => {
 // Define order actions
 const getOrderActions = (order) => {
   return [
+    {
+      key: 'mark_paid',
+      label: 'Mark as Paid',
+      icon: 'payments',
+      colorClass: 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20',
+      // Show only if not already paid (check both text content and logic)
+      show: () => {
+        const status = order.payment?.status || '';
+        return !status.toString().toLowerCase().includes('paid');
+      },
+      onClick: () => markOrderAsPaid(order.id)
+    },
     {
       key: 'view',
       label: 'View Details',
@@ -639,7 +609,6 @@ const onOrderAction = ({ key, row }) => {
   // This is handled by individual onClick functions in getOrderActions
   console.log('Order action:', key, row.id);
 };
-
 </script>
 
 <template>
@@ -655,11 +624,12 @@ const onOrderAction = ({ key, row }) => {
           <input v-model="searchQuery" type="search" placeholder="Search by order #, table, or device..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ec7813]">
           <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
         </div>
-        <select v-model="typeFilter" class="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ec7813]">
-          <option value="all">All Order Types</option>
-          <option value="dine_in">Dine In</option>
-          <option value="takeout">Takeout</option>
+        
+        <!-- Tab Filter Dropdown (Mobile/Compact) -->
+         <select v-model="activeTab" class="sm:hidden px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ec7813]">
+             <option v-for="tab in tabs" :key="tab.id" :value="tab.id">{{ tab.label }}</option>
         </select>
+
         <button 
           @click="router.get('/admin/barista')"
           class="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-600 text-white hover:bg-yellow-700 transition-all"
@@ -677,516 +647,291 @@ const onOrderAction = ({ key, row }) => {
       </div>
     </div>
 
-    <!-- Status Filter Tabs -->
-    <div class="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
+    <!-- Main Tabs -->
+    <div class="hidden sm:flex border-b border-gray-200 dark:border-gray-700 mb-6">
+      <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+        <button 
+          v-for="tab in tabs"
+          :key="tab.id"
+          @click="activeTab = tab.id"
+          :class="[
+            activeTab === tab.id
+              ? 'border-[#ec7813] text-[#ec7813]'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300',
+            'group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all'
+          ]"
+        >
+          <i :class="[tab.icon, activeTab === tab.id ? 'text-[#ec7813]' : 'text-gray-400 group-hover:text-gray-500', '-ml-0.5 mr-2 h-5 w-5']"></i>
+          <span>{{ tab.label }}</span>
+          <span v-if="tab.count > 0" class="ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white">
+            {{ tab.count }}
+          </span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Status Filter Tabs (Pills) -->
+    <div class="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+       <!-- Simplified status filters just use activeStatus directly -->
       <button 
         @click="activeStatus='all'" 
         :class="activeStatus==='all' ? 'bg-[#ec7813] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'" 
         class="px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all"
       >
-        All Orders <span class="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-xs">{{ totalItems }}</span>
+        All
       </button>
-      <button 
+       <button 
         @click="activeStatus='received'" 
         :class="activeStatus==='received' ? 'bg-[#ec7813] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'" 
-        class="px-4 py-2 rounded-full whitespace-nowrap transition-all"
+        class="px-4 py-2 rounded-full whitespace-nowrap transition-all flex items-center gap-2"
       >
-        <span class="inline-flex items-center gap-1">
-          <span class="w-2 h-2 bg-orange-500 rounded-full"></span>
-          Received
-        </span>
-        <span class="ml-1 text-gray-500">{{ orders.filter(o => o.status?.text === 'Received').length }}</span>
+        <span class="w-2 h-2 rounded-full bg-orange-500"></span> Received
       </button>
-      <button 
-        @click="activeStatus='confirmed'" 
-        :class="activeStatus==='confirmed' ? 'bg-[#ec7813] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'" 
-        class="px-4 py-2 rounded-full whitespace-nowrap transition-all"
-      >
-        <span class="inline-flex items-center gap-1">
-          <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-          Confirmed
-        </span>
-        <span class="ml-1 text-gray-500">{{ orders.filter(o => o.status?.text === 'Confirmed').length }}</span>
-      </button>
-      <button 
-        @click="activeStatus='queued'" 
-        :class="activeStatus==='queued' ? 'bg-[#ec7813] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'" 
-        class="px-4 py-2 rounded-full whitespace-nowrap transition-all"
-      >
-        <span class="inline-flex items-center gap-1">
-          <span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
-          Queued
-        </span>
-        <span class="ml-1 text-gray-500">{{ orders.filter(o => o.status?.text === 'Queued').length }}</span>
-      </button>
-      <button 
+       <button 
         @click="activeStatus='preparing'" 
         :class="activeStatus==='preparing' ? 'bg-[#ec7813] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'" 
-        class="px-4 py-2 rounded-full whitespace-nowrap transition-all"
+        class="px-4 py-2 rounded-full whitespace-nowrap transition-all flex items-center gap-2"
       >
-        <span class="inline-flex items-center gap-1">
-          <span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-          Preparing
-        </span>
-        <span class="ml-1 text-gray-500">{{ orders.filter(o => o.status?.text === 'Preparing').length }}</span>
+        <span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> Preparing
       </button>
-      <button 
+       <button 
         @click="activeStatus='ready'" 
         :class="activeStatus==='ready' ? 'bg-[#ec7813] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'" 
-        class="px-4 py-2 rounded-full whitespace-nowrap transition-all"
+        class="px-4 py-2 rounded-full whitespace-nowrap transition-all flex items-center gap-2"
       >
-        <span class="inline-flex items-center gap-1">
-          <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
-          Ready
-        </span>
-        <span class="ml-1 text-gray-500">{{ orders.filter(o => o.status?.text === 'Ready').length }}</span>
-      </button>
-      <button 
-        @click="activeStatus='served'" 
-        :class="activeStatus==='served' ? 'bg-[#ec7813] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'" 
-        class="px-4 py-2 rounded-full whitespace-nowrap transition-all"
-      >
-        <span class="inline-flex items-center gap-1">
-          <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-          Served
-        </span>
-        <span class="ml-1 text-gray-500">{{ orders.filter(o => o.status?.text === 'Served').length }}</span>
-      </button>
-      <button 
-        @click="activeStatus='completed'" 
-        :class="activeStatus==='completed' ? 'bg-[#ec7813] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'" 
-        class="px-4 py-2 rounded-full whitespace-nowrap transition-all"
-      >
-        <span class="inline-flex items-center gap-1">
-          <span class="w-2 h-2 bg-green-600 rounded-full"></span>
-          Completed
-        </span>
-        <span class="ml-1 text-gray-500">{{ orders.filter(o => o.status?.text === 'Completed').length }}</span>
+        <span class="w-2 h-2 rounded-full bg-purple-500"></span> Ready
       </button>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-      <CardWrapper padding="sm">
-        <div class="flex items-center justify-between mb-2">
-          <div class="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/20">
-            <span class="material-symbols-outlined text-orange-600 dark:text-orange-400">pending</span>
-          </div>
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
+             <div class="p-3 rounded-full bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400">
+                <span class="material-symbols-outlined">inbox</span>
+             </div>
+             <div>
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Pending</p>
+                <p class="text-2xl font-bold font-display text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Received').length }}</p>
+             </div>
         </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Received').length }}</p>
-        <p class="text-sm text-gray-700 dark:text-gray-400">Received</p>
-      </CardWrapper>
-      
-      <CardWrapper padding="sm">
-        <div class="flex items-center justify-between mb-2">
-          <div class="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/20">
-            <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">verified</span>
-          </div>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
+             <div class="p-3 rounded-full bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400">
+                <span class="material-symbols-outlined">skillet</span>
+             </div>
+             <div>
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Kitchen</p>
+                <p class="text-2xl font-bold font-display text-gray-900 dark:text-white">{{ orders.filter(o => ['Queued','Preparing'].includes(o.status?.text)).length }}</p>
+             </div>
         </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Confirmed').length }}</p>
-        <p class="text-sm text-gray-700 dark:text-gray-400">Confirmed</p>
-      </CardWrapper>
-      
-      <CardWrapper padding="sm">
-        <div class="flex items-center justify-between mb-2">
-          <div class="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/20">
-            <span class="material-symbols-outlined text-yellow-600 dark:text-yellow-400">local_cafe</span>
-          </div>
-          <span class="text-sm text-yellow-600 dark:text-yellow-400 font-medium">Active</span>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
+             <div class="p-3 rounded-full bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                <span class="material-symbols-outlined">notifications_active</span>
+             </div>
+             <div>
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Ready</p>
+                <p class="text-2xl font-bold font-display text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Ready').length }}</p>
+             </div>
         </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Preparing').length }}</p>
-        <p class="text-sm text-gray-700 dark:text-gray-400">Preparing</p>
-      </CardWrapper>
-      
-      <CardWrapper padding="sm">
-        <div class="flex items-center justify-between mb-2">
-          <div class="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
-            <span class="material-symbols-outlined text-purple-600 dark:text-purple-400">notifications_active</span>
-          </div>
-          <span class="text-sm text-purple-600 dark:text-purple-400 font-medium">Ready</span>
+         <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
+             <div class="p-3 rounded-full bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400">
+                <span class="material-symbols-outlined">check_circle</span>
+             </div>
+             <div>
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Served</p>
+                <p class="text-2xl font-bold font-display text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Served').length }}</p>
+             </div>
         </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Ready').length }}</p>
-        <p class="text-sm text-gray-700 dark:text-gray-400">Ready</p>
-      </CardWrapper>
-      
-      <CardWrapper padding="sm">
-        <div class="flex items-center justify-between mb-2">
-          <div class="p-2 rounded-lg bg-green-100 dark:bg-green-900/20">
-            <span class="material-symbols-outlined text-green-600 dark:text-green-400">local_shipping</span>
-          </div>
-        </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Served').length }}</p>
-        <p class="text-sm text-gray-700 dark:text-gray-400">Served</p>
-      </CardWrapper>
-      
-      <CardWrapper padding="sm">
-        <div class="flex items-center justify-between mb-2">
-          <div class="p-2 rounded-lg bg-green-100 dark:bg-green-900/20">
-            <span class="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
-          </div>
-        </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ orders.filter(o => o.status?.text === 'Completed').length }}</p>
-        <p class="text-sm text-gray-700 dark:text-gray-400">Completed</p>
-      </CardWrapper>
     </div>
 
     <!-- Orders Table -->
-    <CardWrapper overflow>
-      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center justify-between flex-1">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Live Orders</h3>
-            <div class="text-xs text-gray-500">
-              <span v-if="lastRefresh">
-                Last updated: {{ lastRefresh.toLocaleTimeString() }}
-              </span>
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <select v-model="categoryFilter" class="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ec7813]">
-              <option value="all">All Categories</option>
-              <option value="cold_drinks">Cold Drinks</option>
-              <option value="hot_drinks">Hot Drinks</option>
-              <option value="pastries">Pastries</option>
-              <option value="sandwiches">Sandwiches</option>
-            </select>
-            <select v-model="sortKey" class="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ec7813]">
-              <option value="recent">Sort by: Recent</option>
-              <option value="status">Sort by: Status</option>
-              <option value="amount">Sort by: Amount</option>
-              <option value="table">Sort by: Table</option>
-              <option value="priority">Sort by: Priority</option>
-            </select>
-            <button class="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
-              <span class="material-symbols-outlined text-sm">filter_list</span>
-            </button>
-            <button 
-              @click="fetchOrders"
-              :disabled="loading"
-              class="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
-              title="Refresh Orders"
-            >
-              <span class="material-symbols-outlined text-sm" :class="{ 'animate-spin': loading }">refresh</span>
-            </button>
-          </div>
+    <CardWrapper class="overflow-hidden">
+      <!-- Toolbar -->
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-gray-700 dark:text-gray-300">Live Orders</span>
+             <span v-if="loading" class="animate-spin ml-2 text-gray-400"><i class="fas fa-circle-notch"></i></span>
         </div>
+        <button @click="fetchOrders" class="text-sm text-[#ec7813] hover:underline flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">refresh</span> Refresh
+        </button>
       </div>
-      
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead>
-            <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Order #</th>
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Table/Type</th>
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Device Info</th>
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Items</th>
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Total</th>
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Payment</th>
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Status</th>
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Time</th>
-              <th class="text-left py-3 px-6 text-gray-700 dark:text-gray-400 font-medium text-sm">Actions</th>
+
+      <div class="overflow-x-auto min-h-[300px]">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-800">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Order</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Table</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Items</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment</th>
+              <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
-          <tbody>
-            <!-- Loading State -->
-            <tr v-if="loading">
-              <td colspan="9" class="py-12 text-center">
-                <div class="flex items-center justify-center gap-3 text-gray-500">
-                  <span class="material-symbols-outlined animate-spin">refresh</span>
-                  <span>Loading orders...</span>
+          <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tr v-if="paginatedOrders.length === 0">
+              <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <div class="flex flex-col items-center">
+                    <span class="material-symbols-outlined text-4xl mb-2 opacity-50">search_off</span>
+                    <span>No orders found matching your filters.</span>
                 </div>
               </td>
             </tr>
-            
-            <!-- Error State -->
-            <tr v-else-if="error">
-              <td colspan="9" class="py-12 text-center">
-                <div class="text-red-500">
-                  <span class="material-symbols-outlined text-4xl mb-2">error</span>
-                  <p class="font-medium">Failed to load orders</p>
-                  <p class="text-sm text-red-400">{{ error }}</p>
-                  <button 
-                    @click="fetchOrders"
-                    class="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </td>
-            </tr>
-            
-            <!-- Empty State -->
-            <tr v-else-if="orders.length === 0">
-              <td colspan="9" class="py-12 text-center">
-                <div class="text-gray-500">
-                  <span class="material-symbols-outlined text-4xl mb-2">inbox</span>
-                  <p class="font-medium">No orders found</p>
-                  <p class="text-sm">Orders will appear here once customers place them</p>
-                </div>
-              </td>
-            </tr>
-            
-            <!-- Orders -->
-            <tr 
-              v-else
-              v-for="(order, index) in paginatedOrders"
-              :key="order.id"
-              class="border-b border-gray-100 dark:border-gray-800 hover:bg-white/50 dark:hover:bg-gray-900/20 transition-colors"
-            >
-              <td class="py-4 px-6">
+            <tr v-for="order in paginatedOrders" :key="order.id" @click="openOrderDetails(order.id)" class="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group">
+              <!-- Order Info -->
+              <td class="px-6 py-4 whitespace-nowrap">
                 <div>
-                  <p class="font-medium text-gray-900 dark:text-white">{{ order.id }}</p>
-                  <p class="text-gray-700 dark:text-gray-400 text-xs">Session {{ order.sessionId }}</p>
+                   <span class="text-sm font-bold text-gray-900 dark:text-white font-mono">#{{ order.id }}</span>
+                   <div class="text-xs text-gray-500 flex items-center mt-1">
+                      <span class="material-symbols-outlined text-[14px] mr-1">schedule</span> {{ order.time }}
+                   </div>
                 </div>
               </td>
-              <td class="py-4 px-6">
-                <div>
-                  <p class="text-gray-900 dark:text-white font-medium">{{ order.tableType }}</p>
-                  <p class="text-gray-700 dark:text-gray-400 text-sm">{{ order.orderType }}</p>
+              
+              <!-- Table / Type -->
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center gap-2">
+                    <OrderTypeBadge :is-group="isGroupOrder(order)" :table-number="order.tableType" />
+                </div>
+                <div class="text-xs text-gray-500 mt-1 pl-1 truncate max-w-[120px]" v-if="order.customerName">{{ order.customerName }}</div>
+              </td>
+
+              <!-- Status -->
+              <td class="px-6 py-4 whitespace-nowrap">
+                <OrderStatusBadge :status="order.rawStatus || 'received'" />
+              </td>
+
+              <!-- Items -->
+              <td class="px-6 py-4">
+                 <div class="text-sm text-gray-900 dark:text-white max-w-xs truncate font-medium">
+                  {{ order.items.description }}
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ order.items.count }} item{{ order.items.count !== 1 ? 's' : '' }}
                 </div>
               </td>
-              <td class="py-4 px-6">
-                <div>
-                  <p class="text-gray-900 dark:text-white text-sm">{{ order.deviceInfo.ip }}</p>
-                  <p class="text-gray-700 dark:text-gray-400 text-xs">{{ order.deviceInfo.type }}</p>
-                </div>
-              </td>
-              <td class="py-4 px-6">
-                <div>
-                  <p class="text-gray-900 dark:text-white">{{ order.items.count }} items</p>
-                  <p class="text-gray-700 dark:text-gray-400 text-sm line-clamp-1">{{ order.items.description }}</p>
-                </div>
-              </td>
-              <td class="py-4 px-6">
-                <div>
-                  <p class="text-gray-900 dark:text-white font-bold">₱{{ order.total.toFixed(2) }}</p>
-                </div>
-              </td>
-              <td class="py-4 px-6">
-                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium" :class="getStatusClasses(order.payment.color)">
-                  <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClasses(order.payment.color)"></span>
+
+              <!-- Payment -->
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-bold text-gray-900 dark:text-white">₱{{ order.total }}</div>
+                 <span 
+                  class="text-xs font-semibold inline-flex items-center mt-0.5"
+                  :class="order.payment.color === 'green' ? 'text-green-600' : 'text-red-500'"
+                >
                   {{ order.payment.status }}
                 </span>
               </td>
-              <td class="py-4 px-6">
-                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium" :class="getStatusClasses(order.status.color)">
-                  <span class="w-1.5 h-1.5 rounded-full" :class="[getStatusDotClasses(order.status.color), order.status.color === 'yellow' ? 'animate-pulse' : '']"></span>
-                  {{ order.status.text }}
-                </span>
-              </td>
-              <td class="py-4 px-6">
-                <div>
-                  <p class="text-gray-900 dark:text-white text-sm">{{ order.time }}</p>
+
+              <!-- Quick Actions -->
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div class="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                      <button 
+                        v-if="['queued','received'].includes(order.rawStatus)"
+                        @click="updateOrderStatus(order.id, 'preparing')"
+                        class="text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 px-2 py-1 rounded shadow-sm"
+                        title="Start Preparing"
+                    >
+                        <i class="fas fa-fire"></i>
+                    </button>
+                     <button 
+                        v-if="order.rawStatus === 'preparing'"
+                        @click="updateOrderStatus(order.id, 'ready')"
+                        class="text-xs bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200 px-2 py-1 rounded shadow-sm"
+                        title="Mark Ready"
+                    >
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <button 
+                        v-if="order.rawStatus === 'ready'"
+                        @click="updateOrderStatus(order.id, 'served')"
+                        class="text-xs bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 px-2 py-1 rounded shadow-sm"
+                         title="Mark Served"
+                    >
+                        <i class="fas fa-check"></i>
+                    </button>
+
+                    <TableActionsDropdown :actions="getOrderActions(order)" :row="order" @action="onOrderAction" />
                 </div>
-              </td>
-              <td class="py-4 px-6">
-                <TableActionsDropdown
-                  :row="order"
-                  :actions="getOrderActions(order)"
-                  placement="bottom-end"
-                  width="32"
-                  @action="onOrderAction"
-                />
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      
-      <!-- Table Footer -->
-      <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-        <Pagination 
-          :current-page="currentPage"
-          :total-items="totalItems"
-          :items-per-page="itemsPerPage"
-          items-text="orders"
-          @page-change="handlePageChange"
-        />
-      </div>
+
+       <!-- Pagination -->
+      <Pagination 
+        v-if="orders.length > 0"
+        :current-page="currentPage"
+        :total-items="totalItems"
+        :items-per-page="itemsPerPage"
+        @page-change="handlePageChange"
+        class="border-t border-gray-200 dark:border-gray-700"
+      />
     </CardWrapper>
 
     <!-- Order Details Modal -->
     <AdminModal
       :show="showOrderModal"
       :title="`Order ${selectedOrder?.id}`"
-      subtitle="Order details and management"
-      icon="receipt"
-      max-width="4xl"
-      animation-type="slide"
+      max-width="2xl"
       @close="closeOrderModal"
     >
-      <!-- Modal Content -->
       <div v-if="selectedOrder" class="space-y-6">
-        <!-- Order Summary -->
-        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h4 class="text-lg font-bold text-black dark:text-white mb-4 flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary">shopping_cart</span>
-            Order Summary
-          </h4>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-3">
-              <div>
-                <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Order ID</label>
-                <p class="text-base font-semibold text-black dark:text-white">{{ selectedOrder.id }}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Session</label>
-                <p class="text-base text-black dark:text-white">{{ selectedOrder.sessionId }}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Table/Location</label>
-                <p class="text-base text-black dark:text-white">{{ selectedOrder.tableType }}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Order Type</label>
-                <p class="text-base text-black dark:text-white">{{ selectedOrder.orderType }}</p>
-              </div>
+        <!-- Header Info -->
+        <div class="flex justify-between items-start">
+             <div>
+                 <h2 class="text-xl font-bold dark:text-white">Order #{{ selectedOrder.id }}</h2>
+                 <p class="text-sm text-gray-500">{{ selectedOrder.time }}</p>
+             </div>
+             <div class="text-right">
+                 <OrderStatusBadge :status="selectedOrder.rawStatus" />
+             </div>
+        </div>
+
+        <div class="border-t border-gray-100 dark:border-gray-700 pt-4 grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="block text-gray-500 text-xs uppercase font-bold">Table</span>
+                <span class="font-medium dark:text-white">{{ selectedOrder.tableType }}</span>
             </div>
+             <div>
+                <span class="block text-gray-500 text-xs uppercase font-bold">Type</span>
+                <span class="font-medium dark:text-white">{{ selectedOrder.orderType }}</span>
+            </div>
+             <div>
+                <span class="block text-gray-500 text-xs uppercase font-bold">Session</span>
+                <span class="font-medium dark:text-white">{{ selectedOrder.sessionId }}</span>
+            </div>
+             <div>
+                <span class="block text-gray-500 text-xs uppercase font-bold">Payment</span>
+                <span class="font-medium" :class="selectedOrder.payment.color === 'green' ? 'text-green-600' : 'text-red-500'">{{ selectedOrder.payment.status }}</span>
+            </div>
+        </div>
+
+        <!-- Items -->
+        <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+            <h3 class="font-bold text-gray-700 dark:text-gray-300 text-sm uppercase mb-3">Order Items</h3>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-900 dark:text-white font-medium">{{ selectedOrder.items.description }}</span>
+                <span class="text-gray-900 dark:text-white font-bold">₱{{ selectedOrder.total }}</span>
+            </div>
+            <p v-if="selectedOrder.originalOrder?.customer_notes" class="mt-2 text-sm text-orange-600 italic bg-orange-50 px-2 py-1 rounded border border-orange-100 inline-block">
+                "{{ selectedOrder.originalOrder.customer_notes }}"
+            </p>
+        </div>
+
+        <!-- Actions Footer -->
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button @click="closeOrderModal" class="btn-secondary">Close</button>
+            <button v-if="selectedOrder.payment.status === 'Unpaid'" @click="markOrderAsPaid(selectedOrder.id); closeOrderModal()" class="btn-success">Mark Paid</button>
             
-            <div class="space-y-3">
-              <div>
-                <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Device Info</label>
-                <p class="text-sm text-black dark:text-white">{{ selectedOrder.deviceInfo.ip }}</p>
-                <p class="text-xs text-black/60 dark:text-white/60">{{ selectedOrder.deviceInfo.type }}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Status</label>
-                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium" :class="getStatusClasses(selectedOrder.status.color)">
-                  <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClasses(selectedOrder.status.color)"></span>
-                  {{ selectedOrder.status.text }}
-                </span>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Payment Status</label>
-                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium" :class="getStatusClasses(selectedOrder.payment.color)">
-                  <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClasses(selectedOrder.payment.color)"></span>
-                  {{ selectedOrder.payment.status }}
-                </span>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-black/60 dark:text-white/60 mb-1">Time</label>
-                <p class="text-base text-black dark:text-white">{{ selectedOrder.time }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Order Items -->
-        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h4 class="text-lg font-bold text-black dark:text-white mb-4 flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary">list_alt</span>
-            Order Items
-          </h4>
-          
-          <div class="space-y-3">
-            <div class="bg-white dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="font-medium text-black dark:text-white">{{ selectedOrder.items.count }} items</p>
-                  <p class="text-sm text-black/60 dark:text-white/60">{{ selectedOrder.items.description }}</p>
-                </div>
-                <div class="text-right">
-                  <p class="text-lg font-bold text-black dark:text-white">₱{{ selectedOrder.total.toFixed(2) }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Order Timeline -->
-        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h4 class="text-lg font-bold text-black dark:text-white mb-4 flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary">timeline</span>
-            Order Timeline
-          </h4>
-          
-          <div class="space-y-3">
-            <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm">check_circle</span>
-              </div>
-              <div>
-                <p class="font-medium text-black dark:text-white">Order Placed</p>
-                <p class="text-xs text-black/60 dark:text-white/60">{{ selectedOrder.time }}</p>
-              </div>
-            </div>
-            <div v-if="selectedOrder.status.text !== 'Pending'" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-sm">verified</span>
-              </div>
-              <div>
-                <p class="font-medium text-black dark:text-white">Order Confirmed</p>
-                <p class="text-xs text-black/60 dark:text-white/60">Processing...</p>
-              </div>
-            </div>
-          </div>
+            <!-- Workflow Buttons based on status -->
+             <button v-if="['queued','received'].includes(selectedOrder.rawStatus)" @click="updateOrderStatus(selectedOrder.id, 'preparing'); closeOrderModal()" class="btn-primary">Start Preparing</button>
+             <button v-if="selectedOrder.rawStatus === 'preparing'" @click="updateOrderStatus(selectedOrder.id, 'ready'); closeOrderModal()" class="btn-primary bg-purple-600 hover:bg-purple-700">Mark Ready</button>
+             <button v-if="selectedOrder.rawStatus === 'ready'" @click="updateOrderStatus(selectedOrder.id, 'served'); closeOrderModal()" class="btn-success">Mark Served</button>
         </div>
       </div>
-
-      <!-- Custom Footer -->
-      <template #footer>
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <button
-              @click="closeOrderModal"
-              class="px-6 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-            >
-              Close
-            </button>
-            <button class="px-6 py-2 rounded-xl bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800 transition-all font-medium">
-              <span class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-lg">print</span>
-                Print Receipt
-              </span>
-            </button>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <button
-              v-if="selectedOrder.status.text === 'Received'"
-              @click="updateOrderStatus(selectedOrder.id, 'confirmed'); closeOrderModal()"
-              class="px-6 py-2 rounded-xl bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800 transition-all font-medium"
-            >
-              <span class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-lg">check_circle</span>
-                Confirm Order
-              </span>
-            </button>
-            <button
-              v-if="selectedOrder.status.text === 'Confirmed'"
-              @click="updateOrderStatus(selectedOrder.id, 'queued'); closeOrderModal()"
-              class="px-6 py-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all font-medium"
-            >
-              <span class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-lg">queue</span>
-                Send to Queue
-              </span>
-            </button>
-            <button
-              v-if="selectedOrder.status.text === 'Ready'"
-              @click="updateOrderStatus(selectedOrder.id, 'served'); closeOrderModal()"
-              class="px-6 py-2 rounded-xl bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800 transition-all font-medium"
-            >
-              <span class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-lg">local_shipping</span>
-                Mark Served
-              </span>
-            </button>
-            <button
-              v-if="selectedOrder.status.text === 'Served'"
-              @click="updateOrderStatus(selectedOrder.id, 'completed'); closeOrderModal()"
-              class="px-6 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 hover:shadow-lg transition-all font-medium"
-            >
-              <span class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-lg">check_circle</span>
-                Mark Completed
-              </span>
-            </button>
-          </div>
-        </div>
-      </template>
     </AdminModal>
+
   </AdminLayout>
 </template>
 

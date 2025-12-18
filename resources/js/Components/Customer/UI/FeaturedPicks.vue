@@ -39,13 +39,7 @@ const handleCustomize = (product) => {
           Handpicked by our baristas
         </p>
       </div>
-      <button
-        class="text-surface-600 flex items-center justify-center px-4 py-2 rounded-xl hover:bg-white/50 active:bg-white/80 transition-all group"
-        @click="handleViewDetails(featuredProducts)"
-        >
-        <span class="text-button text-sm mr-1">View All</span>
-        <i class="fas fa-chevron-right text-lg group-hover:translate-x-1 transition-transform"></i>
-      </button>
+
     </div>
 
     <!-- Featured Products Carousel -->

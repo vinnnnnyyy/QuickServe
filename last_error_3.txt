@@ -1,0 +1,100 @@
+#30 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#31 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#32 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#33 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(48): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#34 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#35 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(120): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#36 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(63): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#37 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#38 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(36): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(74): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#41 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#42 C:\\Laravel projects\\quickServe\\vendor\\laravel\\sanctum\\src\\Http\\Middleware\\EnsureFrontendRequestsAreStateful.php(26): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#43 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Laravel\\Sanctum\\Http\\Middleware\\EnsureFrontendRequestsAreStateful->Laravel\\Sanctum\\Http\\Middleware\\{closure}(Object(Illuminate\\Http\\Request))
+#44 C:\\Laravel projects\\quickServe\\vendor\\laravel\\sanctum\\src\\Http\\Middleware\\AuthenticateSession.php(66): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#45 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Laravel\\Sanctum\\Http\\Middleware\\AuthenticateSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(87): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(120): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(63): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#50 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#51 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(36): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#52 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#53 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(74): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#54 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#55 C:\\Laravel projects\\quickServe\\vendor\\laravel\\sanctum\\src\\Http\\Middleware\\EnsureFrontendRequestsAreStateful.php(61): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#56 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(201): Laravel\\Sanctum\\Http\\Middleware\\EnsureFrontendRequestsAreStateful->Laravel\\Sanctum\\Http\\Middleware\\{closure}(Object(Illuminate\\Http\\Request), Object(Closure))
+#57 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(137): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#58 C:\\Laravel projects\\quickServe\\vendor\\laravel\\sanctum\\src\\Http\\Middleware\\EnsureFrontendRequestsAreStateful.php(25): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#59 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Laravel\\Sanctum\\Http\\Middleware\\EnsureFrontendRequestsAreStateful->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#60 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(137): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#61 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(821): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#62 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(800): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#63 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(764): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#64 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(753): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#65 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(200): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#66 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#67 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#68 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#69 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#70 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#71 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(51): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#72 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#73 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#74 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#75 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(109): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#76 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#77 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(61): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#78 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#79 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(58): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#80 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#81 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\InvokeDeferredCallbacks.php(22): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#82 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Foundation\\Http\\Middleware\\InvokeDeferredCallbacks->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#83 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\ValidatePathEncoding.php(26): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#84 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(219): Illuminate\\Http\\Middleware\\ValidatePathEncoding->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#85 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(137): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#86 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(175): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#87 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(144): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#88 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(1220): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#89 C:\\Laravel projects\\quickServe\\public\\index.php(20): Illuminate\\Foundation\\Application->handleRequest(Object(Illuminate\\Http\\Request))
+#90 C:\\Laravel projects\\quickServe\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\resources\\server.php(23): require_once('C:\\\\Laravel proj...')
+#91 {main}
+"} 
+[2025-12-18 00:12:36] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:38] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:38] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:40] local.INFO: getSessionStatus Check: Device [32dcea17-8e23-4838-90b4-fa5622fce2ea] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:41] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:42] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:43] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:45] local.INFO: getSessionStatus Check: Device [6635534d-f40d-4921-9f5f-892790f102b1] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:45] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:47] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:48] local.INFO: getSessionStatus Check: Device [e67627d6-6629-424c-84d8-63bc7bfda00e] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:49] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:51] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:52] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:53] local.INFO: getSessionStatus Check: Device [38131ebf-2c16-4f5b-b4ab-fcb149febd1f] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:54] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:55] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:12:58] local.INFO: getSessionStatus Check: Device [99ce9590-d109-492a-9107-483a3ac3bab0] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:00] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:04] local.INFO: getSessionStatus Check: Device [2f2e8db5-20e8-4af8-9df0-6d2915b69f42] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:06] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:13] local.INFO: getSessionStatus Check: Device [cdd5f396-15c8-4d4f-b9af-663a7a182ab6] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:17] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:18] local.INFO: getSessionStatus Check: Device [03f98040-58ac-4b2e-a3e6-3f10968627b8] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:20] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:21] local.INFO: getSessionStatus Check: Device [02a42dee-d2eb-4e3a-a3a4-738f4e159617] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:24] local.INFO: getSessionStatus Check: Device [04d6d25d-5ef1-4d39-8ac6-2338aa5522d7] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:28] local.INFO: getSessionStatus Check: Device [8861e677-b07f-4326-ac4f-8d494161f46e] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:31] local.INFO: getSessionStatus Check: Device [e49d4fd8-d4de-4d5b-8c8f-e402d1ec95a7] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:35] local.INFO: getSessionStatus Check: Device [15cf0e38-596c-49b0-bbd7-4d0184a75802] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:40] local.INFO: getSessionStatus Check: Device [9a45b801-b59b-45c7-a53e-e039727758d5] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:41] local.INFO: getSessionStatus Check: Device [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:45] local.INFO: getSessionStatus Check: Device [7f97fcfd-4f28-4f4e-8487-3f7c00e6cdcf] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:50] local.INFO: getSessionStatus Check: Device [f8c77076-cea2-405d-8009-d7f18357a8ca] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:13:55] local.INFO: getSessionStatus Check: Device [1007e6ce-7c97-46fd-b892-19ef3ee2214d] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:14:00] local.INFO: getSessionStatus Check: Device [ec250ef6-dfcd-4bad-b4ef-f7170a9ab685] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  
+[2025-12-18 00:14:04] local.INFO: getSessionStatus Check: Device [0c3f5799-38bd-497f-a8b4-51e33e5b869a] vs Host [be2bb5f7-58c7-4b0a-aeaf-fcd4c9e76b4a]  

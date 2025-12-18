@@ -45,4 +45,12 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Get the staff profile associated with the user.
+     */
+    public function staff()
+    {
+        return $this->hasOne(Staff::class);
+    }
 }

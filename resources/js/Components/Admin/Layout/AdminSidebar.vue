@@ -12,7 +12,20 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 const page = usePage();
 
-const navigationItems = [
+// Get user role from shared auth data
+const staffRole = computed(() => {
+  return page.props.auth?.staffRole || null;
+});
+
+// Check if user is barista
+const isBarista = computed(() => {
+  return staffRole.value === 'barista' || 
+         staffRole.value === 'head barista' || 
+         staffRole.value === 'senior barista';
+});
+
+// All navigation items
+const allNavigationItems = [
   { name: 'Dashboard', icon: 'dashboard', href: '/admin/dashboard' },
   { name: 'Orders', icon: 'list_alt', href: '/admin/orders' },
   { name: 'Menu', icon: 'coffee', href: '/admin/menu' },
@@ -22,6 +35,18 @@ const navigationItems = [
   { name: 'Tables & QR', icon: 'qr_code', href: '/admin/tables' },
   { name: 'Barista Queue', icon: 'coffee_maker', href: '/admin/barista' },
 ];
+
+// Filter navigation items based on role
+const navigationItems = computed(() => {
+  if (isBarista.value) {
+    // Baristas only see Dashboard and Barista Queue
+    return allNavigationItems.filter(item => 
+      item.href === '/admin/dashboard' || item.href === '/admin/barista'
+    );
+  }
+  // All other roles see all items
+  return allNavigationItems;
+});
 
 const closeSidebar = () => {
   emit('close');
@@ -68,8 +93,8 @@ const isActive = (href) => {
         </Link>
       </nav>
 
-      <!-- Settings at bottom -->
-      <div class="mt-auto">
+      <!-- Settings at bottom (hidden for baristas) -->
+      <div v-if="!isBarista" class="mt-auto">
         <Link
           href="/admin/settings"
           class="nav-item flex items-center gap-3 px-3 py-2 rounded transition-all"

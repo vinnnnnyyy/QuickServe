@@ -23,12 +23,12 @@ const paymentMethods = [
     },
     {
         id: 'cash',
-        name: 'Pay Cash',
-        description: 'Pay with cash at your table',
+        name: 'Pay with Cash',
+        description: 'Settled securely at your table',
         icon: 'fas fa-money-bill-wave',
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
+        color: 'text-emerald-600',
+        bgColor: 'bg-emerald-50',
+        borderColor: 'border-emerald-200',
         available: true
     },
     {
@@ -136,10 +136,10 @@ const selectPaymentMethod = (methodId) => {
                 </div>
             </div>
 
-            <div v-if="method.id === 'cash' && selectedMethod === method.id" class="mt-3 pt-3 border-t border-green-200">
-                <div class="flex items-center text-sm text-green-700">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    Our staff will collect payment at your table
+            <div v-if="method.id === 'cash' && selectedMethod === method.id" class="mt-3 pt-3 border-t border-emerald-200">
+                <div class="flex items-center text-sm text-emerald-700">
+                    <i class="fas fa-shield-alt mr-2"></i>
+                    Secure payment at your table
                 </div>
             </div>
         </div>

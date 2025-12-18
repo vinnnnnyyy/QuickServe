@@ -1,58 +1,17 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CardWrapper from '@/Components/Admin/UI/CardWrapper.vue';
-import { ref } from 'vue';
+import LineChart from '@/Components/Admin/Charts/LineChart.vue';
+import DoughnutChart from '@/Components/Admin/Charts/DoughnutChart.vue';
+import { defineProps } from 'vue';
 
-// Sample analytics data matching admin.html
-const topProducts = ref([
-  {
-    id: 1,
-    rank: 1,
-    name: 'Iced Brown Sugar Oatmilk',
-    category: 'Cold Drinks',
-    orders: 458,
-    revenue: 2497.10,
-    growth: 24.5,
-    positive: true,
-    iconColor: 'primary'
-  },
-  {
-    id: 2,
-    rank: 2,
-    name: 'Pistachio Cream Cold Brew',
-    category: 'Cold Drinks',
-    orders: 342,
-    revenue: 1692.90,
-    growth: 18.2,
-    positive: true,
-    iconColor: 'blue-600'
-  },
-  {
-    id: 3,
-    rank: 3,
-    name: 'Caramel Macchiato',
-    category: 'Hot Drinks',
-    orders: 289,
-    revenue: 1387.20,
-    growth: -5.3,
-    positive: false,
-    iconColor: 'purple-600'
-  }
-]);
-
-const peakHours = ref([
-  { time: '8:00 AM - 10:00 AM', orders: 147, percentage: 85 },
-  { time: '12:00 PM - 2:00 PM', orders: 132, percentage: 76 },
-  { time: '3:00 PM - 5:00 PM', orders: 98, percentage: 56 },
-  { time: '6:00 PM - 8:00 PM', orders: 76, percentage: 43 }
-]);
-
-const categoryData = ref([
-  { category: 'Hot Drinks', percentage: 45, color: 'bg-primary' },
-  { category: 'Cold Drinks', percentage: 30, color: 'bg-blue-500' },
-  { category: 'Coffee', percentage: 15, color: 'bg-green-500' },
-  { category: 'Desserts', percentage: 10, color: 'bg-purple-500' }
-]);
+const props = defineProps({
+  keyMetrics: Object,
+  topProducts: Array,
+  categoryData: Array,
+  peakHours: Array,
+  salesChart: Array,
+});
 
 const getRankGradient = (rank) => {
   const gradients = {
@@ -71,6 +30,14 @@ const getRankColor = (rank) => {
   };
   return colors[rank] || 'text-gray-600';
 };
+
+// Format currency
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+  }).format(amount);
+};
 </script>
 
 <template>
@@ -83,6 +50,7 @@ const getRankColor = (rank) => {
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4 mb-6">
       <div class="flex items-center gap-3">
         <select class="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
+          <option>Today</option>
           <option>Last 7 days</option>
           <option>Last 30 days</option>
           <option>Last 3 months</option>
@@ -101,13 +69,13 @@ const getRankColor = (rank) => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10">
             <span class="material-symbols-outlined text-primary text-2xl">payments</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">+23.5%</span>
+          <!-- <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">+23.5%</span> -->
         </div>
-        <p class="text-3xl font-bold text-black dark:text-white mb-1">₱48,574</p>
+        <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ formatCurrency(keyMetrics.revenue.value) }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Total Revenue</p>
-        <div class="mt-4 flex items-center text-xs text-black/60 dark:text-white/60">
-          <span class="material-symbols-outlined text-sm mr-1">trending_up</span>
-          <span>₱8,234 from last period</span>
+        <div class="mt-4 flex items-center text-xs" :class="keyMetrics.revenue.growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+          <span class="material-symbols-outlined text-sm mr-1">{{ keyMetrics.revenue.growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
+          <span>{{ keyMetrics.revenue.growth >= 0 ? '+' : '' }}{{ keyMetrics.revenue.growth }}% from last period</span>
         </div>
       </CardWrapper>
       
@@ -116,13 +84,13 @@ const getRankColor = (rank) => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-400/10">
             <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">shopping_bag</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">+15.3%</span>
+          <!-- <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">+15.3%</span> -->
         </div>
-        <p class="text-3xl font-bold text-black dark:text-white mb-1">3,458</p>
+        <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ keyMetrics.orders.value }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Total Orders</p>
-        <div class="mt-4 flex items-center text-xs text-black/60 dark:text-white/60">
-          <span class="material-symbols-outlined text-sm mr-1">trending_up</span>
-          <span>+458 from last period</span>
+        <div class="mt-4 flex items-center text-xs" :class="keyMetrics.orders.growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+          <span class="material-symbols-outlined text-sm mr-1">{{ keyMetrics.orders.growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
+          <span>{{ keyMetrics.orders.growth >= 0 ? '+' : '' }}{{ keyMetrics.orders.growth }}% from last period</span>
         </div>
       </CardWrapper>
       
@@ -131,13 +99,13 @@ const getRankColor = (rank) => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-400/10">
             <span class="material-symbols-outlined text-purple-600 dark:text-purple-400 text-2xl">local_cafe</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">+15.2%</span>
+          <!-- <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">+15.2%</span> -->
         </div>
-        <p class="text-3xl font-bold text-black dark:text-white mb-1">89</p>
+        <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ keyMetrics.turnovers.value }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Table Turnovers</p>
-        <div class="mt-4 flex items-center text-xs text-black/60 dark:text-white/60">
-          <span class="material-symbols-outlined text-sm mr-1">trending_up</span>
-          <span>+12 from last period</span>
+        <div class="mt-4 flex items-center text-xs" :class="keyMetrics.turnovers.growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+          <span class="material-symbols-outlined text-sm mr-1">{{ keyMetrics.turnovers.growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
+          <span>{{ keyMetrics.turnovers.growth >= 0 ? '+' : '' }}{{ keyMetrics.turnovers.growth }}% from last period</span>
         </div>
       </CardWrapper>
       
@@ -146,13 +114,13 @@ const getRankColor = (rank) => {
           <div class="p-3 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10">
             <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-2xl">avg_pace</span>
           </div>
-          <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">+5.2%</span>
+          <!-- <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">+5.2%</span> -->
         </div>
-        <p class="text-3xl font-bold text-black dark:text-white mb-1">₱14.05</p>
+        <p class="text-3xl font-bold text-black dark:text-white mb-1">{{ formatCurrency(keyMetrics.avgOrderValue.value) }}</p>
         <p class="text-sm text-black/60 dark:text-white/60">Average Order Value</p>
-        <div class="mt-4 flex items-center text-xs text-black/60 dark:text-white/60">
-          <span class="material-symbols-outlined text-sm mr-1">trending_up</span>
-          <span>+₱0.69 from last period</span>
+        <div class="mt-4 flex items-center text-xs" :class="keyMetrics.avgOrderValue.growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+          <span class="material-symbols-outlined text-sm mr-1">{{ keyMetrics.avgOrderValue.growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
+          <span>{{ keyMetrics.avgOrderValue.growth >= 0 ? '+' : '' }}{{ keyMetrics.avgOrderValue.growth }}% from last period</span>
         </div>
       </CardWrapper>
     </div>
@@ -173,8 +141,11 @@ const getRankColor = (rank) => {
           </div>
         </div>
         <div class="chart-container">
-          <div class="w-full h-full bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
-            <p class="text-gray-500 dark:text-gray-400">Revenue Chart Placeholder</p>
+          <div class="w-full h-full bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700 p-4">
+             <div v-if="salesChart && salesChart.length > 0" class="w-full h-full">
+                <LineChart :data="salesChart" />
+             </div>
+             <div v-else class="text-gray-500 dark:text-gray-400">No data available</div>
           </div>
         </div>
       </CardWrapper>
@@ -188,8 +159,11 @@ const getRankColor = (rank) => {
           </button>
         </div>
         <div class="chart-container" style="height: 250px;">
-          <div class="w-full h-full bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
-            <p class="text-gray-500 dark:text-gray-400">Doughnut Chart Placeholder</p>
+          <div class="w-full h-full bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700 p-4">
+             <div v-if="categoryData && categoryData.length > 0" class="w-full h-full">
+                <DoughnutChart :data="categoryData" />
+             </div>
+             <div v-else class="text-gray-500 dark:text-gray-400">No data available</div>
           </div>
         </div>
         <div class="mt-6 space-y-3">
@@ -204,6 +178,7 @@ const getRankColor = (rank) => {
             </div>
             <span class="text-sm font-medium text-black dark:text-white">{{ category.percentage }}%</span>
           </div>
+          <div v-if="categoryData.length === 0" class="text-center text-sm text-gray-500">No data available</div>
         </div>
       </CardWrapper>
     </div>
@@ -226,6 +201,7 @@ const getRankColor = (rank) => {
               <div class="bg-gradient-to-r from-primary to-primary/80 h-2 rounded-full" :style="`width: ${hour.percentage}%`"></div>
             </div>
           </div>
+          <div v-if="peakHours.length === 0" class="text-center text-sm text-gray-500">No data available</div>
         </div>
       </CardWrapper>
 
@@ -237,14 +213,14 @@ const getRankColor = (rank) => {
             <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
               <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">devices</span>
             </div>
-            <p class="text-2xl font-bold text-black dark:text-white">23</p>
-            <p class="text-sm text-black/60 dark:text-white/60">Active Devices</p>
+            <p class="text-2xl font-bold text-black dark:text-white">Active</p>
+            <p class="text-sm text-black/60 dark:text-white/60">Device Status</p>
           </div>
           <div class="text-center p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
             <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
               <span class="material-symbols-outlined text-green-600 dark:text-green-400">local_cafe</span>
             </div>
-            <p class="text-2xl font-bold text-black dark:text-white">8/10</p>
+            <p class="text-2xl font-bold text-black dark:text-white">{{ keyMetrics.turnovers.value }}</p>
             <p class="text-sm text-black/60 dark:text-white/60">Tables Occupied</p>
           </div>
           <div class="text-center p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
@@ -258,7 +234,7 @@ const getRankColor = (rank) => {
             <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center">
               <span class="material-symbols-outlined text-yellow-600 dark:text-yellow-400">schedule</span>
             </div>
-            <p class="text-2xl font-bold text-black dark:text-white">4.2m</p>
+            <p class="text-2xl font-bold text-black dark:text-white">--</p>
             <p class="text-sm text-black/60 dark:text-white/60">Avg Brew Time</p>
           </div>
         </div>
@@ -311,13 +287,15 @@ const getRankColor = (rank) => {
                 </span>
               </td>
             </tr>
+            <tr v-if="topProducts.length === 0">
+                <td colspan="5" class="text-center py-4 text-gray-500">No data available</td>
+            </tr>
           </tbody>
         </table>
       </div>
     </CardWrapper>
   </AdminLayout>
 </template>
-
 <style>
 .chart-container {
   position: relative;

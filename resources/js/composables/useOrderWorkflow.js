@@ -121,16 +121,16 @@ export function useOrderWorkflow() {
     // Get status color classes for UI
     const getStatusClasses = (status) => {
         const colorMap = {
-            received: 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border-orange-200',
-            confirmed: 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200',
-            queued: 'bg-indigo-100 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-indigo-200',
-            preparing: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200',
-            ready: 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200',
-            served: 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200',
-            completed: 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200',
-            cancelled: 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200'
+            received: 'text-orange-600 dark:text-orange-400',
+            confirmed: 'text-blue-600 dark:text-blue-400',
+            queued: 'text-indigo-600 dark:text-indigo-400',
+            preparing: 'text-yellow-600 dark:text-yellow-400',
+            ready: 'text-purple-600 dark:text-purple-400',
+            served: 'text-green-600 dark:text-green-400',
+            completed: 'text-green-600 dark:text-green-400',
+            cancelled: 'text-red-600 dark:text-red-400'
         }
-        return colorMap[status] || 'bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border-gray-200'
+        return colorMap[status] || 'text-gray-600 dark:text-gray-400'
     }
 
     // Get status dot classes

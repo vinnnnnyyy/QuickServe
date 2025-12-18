@@ -17,9 +17,16 @@ const form = ref({
   unitPrice: '',
   minStockLevel: '',
   supplier: '',
+  supplierEmail: '',
+  supplierPhone: '',
   sku: '',
   location: '',
-  notes: ''
+  sku: '',
+  location: '',
+  notes: '',
+  unit: 'pcs', // default unit
+  recipeUnit: '',
+  conversionFactor: ''
 });
 
 const isSubmitting = ref(false);
@@ -48,6 +55,16 @@ const locationOptions = ref([
   { value: 'pantry', label: 'Pantry' },
   { value: 'office', label: 'Office' }
 ]);
+
+const unitOptions = [
+  { value: 'pcs', label: 'Pieces (pcs)' },
+  { value: 'g', label: 'Grams (g)' },
+  { value: 'kg', label: 'Kilograms (kg)' },
+  { value: 'ml', label: 'Milliliters (ml)' },
+  { value: 'l', label: 'Liters (l)' },
+  { value: 'pump', label: 'Pumps' },
+  { value: 'cup', label: 'Cups' }
+];
 
 // Computed properties
 const totalValue = computed(() => {
@@ -122,9 +139,16 @@ const submitForm = async () => {
       unitPrice: parseFloat(form.value.unitPrice),
       minStockLevel: form.value.minStockLevel ? parseInt(form.value.minStockLevel, 10) : 0,
       supplier: form.value.supplier || '',
+      supplierEmail: form.value.supplierEmail || '',
+      supplierPhone: form.value.supplierPhone || '',
       sku: form.value.sku || '',
       location: form.value.location || '',
-      notes: form.value.notes || ''
+      sku: form.value.sku || '',
+      location: form.value.location || '',
+      notes: form.value.notes || '',
+      unit: form.value.unit || 'pcs',
+      recipe_unit: form.value.recipeUnit || null,
+      conversion_factor: form.value.conversionFactor ? parseFloat(form.value.conversionFactor) : null
     }, {
       preserveScroll: true,
       onSuccess: () => {
@@ -271,6 +295,14 @@ loadDraft();
               help-text="Current quantity in stock"
             />
             
+            <FormSelect
+              v-model="form.unit"
+              label="Unit of Measurement"
+              :options="unitOptions"
+              required
+              help-text="e.g., ml for liquids, g for weights"
+            />
+            
             <FormInput
               v-model="form.unitPrice"
               label="Unit Price"
@@ -301,11 +333,11 @@ loadDraft();
                   <div>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Stock Status</p>
                     <span 
-                      class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium"
+                      class="inline-flex items-center gap-1.5 text-sm font-medium"
                       :class="{
-                        'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400': stockStatus.color === 'green',
-                        'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400': stockStatus.color === 'yellow',
-                        'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400': stockStatus.color === 'red'
+                        'text-green-600 dark:text-green-400': stockStatus.color === 'green',
+                        'text-yellow-600 dark:text-yellow-400': stockStatus.color === 'yellow',
+                        'text-red-600 dark:text-red-400': stockStatus.color === 'red'
                       }"
                     >
                       <span 
@@ -319,6 +351,46 @@ loadDraft();
                       {{ stockStatus.text }}
                     </span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-8 border-t border-gray-100 dark:border-gray-800 pt-6">
+            <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">scale</span>
+              Recipe Unit Conversion
+            </h4>
+            
+            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-4">
+              <p class="text-sm text-blue-800 dark:text-blue-200">
+                <span class="font-bold">Tip:</span> Enable this if you use different units for recipes (e.g., "Scoops") than for purchasing (e.g., "Grams").
+              </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <FormInput
+                v-model="form.recipeUnit"
+                label="Recipe Unit Name"
+                type="text"
+                placeholder="e.g., Scoop, Pump, Slice"
+                help-text="The unit name used in recipes"
+              />
+
+              <div class="space-y-4">
+                <FormInput
+                  v-model="form.conversionFactor"
+                  label="Conversion Factor"
+                  type="number"
+                  placeholder="0"
+                  step="0.0001"
+                  min="0"
+                  help-text="How much of the base unit constitutes 1 recipe unit?"
+                />
+                
+                <div v-if="form.recipeUnit && form.conversionFactor" class="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <span class="font-medium text-gray-900 dark:text-white">Conversion Logic:</span>
+                  1 {{ form.recipeUnit }} = {{ form.conversionFactor }} {{ form.unit }}
                 </div>
               </div>
             </div>
@@ -356,6 +428,22 @@ loadDraft();
               type="text"
               placeholder="Enter supplier name"
               help-text="Primary supplier for this item"
+            />
+
+            <FormInput
+              v-model="form.supplierEmail"
+              label="Supplier Email"
+              type="email"
+              placeholder="Enter supplier email"
+              help-text="Contact email for the supplier"
+            />
+
+            <FormInput
+              v-model="form.supplierPhone"
+              label="Supplier Phone"
+              type="tel"
+              placeholder="Enter supplier phone number"
+              help-text="Contact phone number for the supplier"
             />
 
             <div class="flex items-end">

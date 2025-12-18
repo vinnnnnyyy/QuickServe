@@ -1,6 +1,5 @@
 <script setup>
 import SidebarLogo from './SidebarLogo.vue';
-import SidebarStats from './SidebarStats.vue';
 import SidebarNavigation from './SidebarNavigation.vue';
 import SidebarQuickActions from './SidebarQuickActions.vue';
 import SidebarOrderSummary from './SidebarOrderSummary.vue';
@@ -12,25 +11,28 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['category-selected']);
+const emit = defineEmits(['category-selected', 'open-my-orders']);
 
 const handleCategorySelected = (category) => {
     emit('category-selected', category);
 };
+
+const handleOpenMyOrders = () => {
+    emit('open-my-orders');
+};
 </script>
 <template>
     <aside
-        class="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:block lg:w-80 lg:overflow-y-auto lg:bg-white/80 lg:backdrop-blur-xl lg:border-r lg:border-gray-200"
+        class="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:block lg:w-72 lg:overflow-y-auto lg:bg-white lg:border-r lg:border-surface-100"
         id="desktopSidebar">
-        <div class="flex flex-col h-full p-6">
+        <div class="flex flex-col h-full px-5 py-6">
             <SidebarLogo />
-            <SidebarStats />
             <SidebarNavigation 
                 v-if="categories.length > 0"
                 :categories="categories" 
                 @category-selected="handleCategorySelected" 
             />
-            <SidebarQuickActions />
+            <SidebarQuickActions @open-my-orders="handleOpenMyOrders" />
             <SidebarOrderSummary />
         </div>
     </aside>

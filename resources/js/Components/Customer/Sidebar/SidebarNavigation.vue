@@ -20,9 +20,9 @@ const handleCategorySelected = (category) => {
 </script>
 
 <template>
-    <nav class="flex-1" role="navigation" aria-labelledby="sidebar-categories-heading">
-        <p id="sidebar-categories-heading" class="text-label text-xs text-surface-500 mb-3 tracking-wide uppercase">Menu Categories</p>
-        <div class="flex flex-col gap-1">
+    <nav class="flex-1 mt-6" role="navigation" aria-labelledby="sidebar-categories-heading">
+        <p id="sidebar-categories-heading" class="text-xs font-medium text-surface-400 mb-3 uppercase tracking-wider">Menu</p>
+        <div class="flex flex-col gap-0.5">
             <NavigationButton 
                 v-for="category in categories" 
                 :key="category.id"
@@ -30,7 +30,6 @@ const handleCategorySelected = (category) => {
                 :is-active="category.active" 
                 :href="`#${category.id}`" 
                 :title="category.name || category.title" 
-                :subtitle="category.description || category.subtitle" 
                 :icon-class="category.icon" 
                 :is-mobile="isMobile"
                 @category-selected="handleCategorySelected" 

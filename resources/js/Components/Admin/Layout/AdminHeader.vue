@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   pageTitle: {
@@ -13,8 +14,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['toggle-sidebar']);
+const page = usePage();
 
 const isDarkMode = ref(false);
+const showUserMenu = ref(false);
 
 const toggleDarkMode = () => {
   isDarkMode.value = !isDarkMode.value;
@@ -35,6 +38,32 @@ const refreshPage = () => {
   window.location.reload();
 };
 
+const handleLogout = () => {
+  router.post('/admin/logout');
+};
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value;
+};
+
+const closeUserMenu = () => {
+  showUserMenu.value = false;
+};
+
+// Get user info from shared auth data
+const user = computed(() => page.props.auth?.user || null);
+const userName = computed(() => user.value?.name || 'Admin');
+const userEmail = computed(() => user.value?.email || '');
+
+// Handle click outside to close menu
+const handleClickOutside = (event) => {
+  const menuElement = event.target.closest('.user-menu-container');
+  const buttonElement = event.target.closest('.user-menu-button');
+  if (!menuElement && !buttonElement && showUserMenu.value) {
+    closeUserMenu();
+  }
+};
+
 // Initialize dark mode
 onMounted(() => {
   const savedTheme = localStorage.getItem('darkMode');
@@ -44,6 +73,17 @@ onMounted(() => {
   } else {
     isDarkMode.value = false;
     document.documentElement.classList.remove('dark');
+  }
+  
+  // Add click outside listener
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  // Remove click outside listener
+  document.removeEventListener('click', handleClickOutside);
+  if (showUserMenu.value) {
+    showUserMenu.value = false;
   }
 });
 </script>
@@ -102,9 +142,46 @@ onMounted(() => {
         </button>
         
         <!-- Status Indicator -->
-        <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+        <div class="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
           <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           <span class="text-green-700 dark:text-green-400 text-sm font-medium">Online</span>
+        </div>
+        
+        <!-- User Menu -->
+        <div class="relative user-menu-container">
+          <button 
+            @click="toggleUserMenu"
+            class="user-menu-button flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+          >
+            <div class="w-8 h-8 rounded-full bg-[#ec7813] text-white flex items-center justify-center font-semibold text-sm">
+              {{ userName.charAt(0).toUpperCase() }}
+            </div>
+            <div class="hidden sm:block text-left">
+              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ userName }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ userEmail }}</p>
+            </div>
+            <span class="material-symbols-outlined text-gray-600 dark:text-gray-400 text-lg">
+              {{ showUserMenu ? 'expand_less' : 'expand_more' }}
+            </span>
+          </button>
+          
+          <!-- Dropdown Menu -->
+          <div 
+            v-show="showUserMenu"
+            class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50"
+          >
+            <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ userName }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ userEmail }}</p>
+            </div>
+            <button
+              @click="handleLogout"
+              class="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              <span class="material-symbols-outlined text-lg">logout</span>
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

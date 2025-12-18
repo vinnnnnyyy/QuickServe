@@ -4,57 +4,114 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Services\JsonStorageService;
-use Illuminate\Http\Request;
+use App\Services\DeviceIdentifierService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    private JsonStorageService $storage;
-
-    public function __construct(JsonStorageService $storage)
-    {
-        $this->storage = $storage;
-        // Sample data initialization removed - no longer needed
-    }
-
-
-
     public function index(): JsonResponse
     {
-        // Try to get from database first, then check JSON storage
-        $dbOrders = collect([]);
-        $jsonOrders = collect([]);
+        $orders = Order::with('table:id,number,location')->orderByDesc('created_at')->get();
+
+        return response()->json($orders);
+    }
+
+    public function myOrders(Request $request): JsonResponse
+    {
+        $deviceId = $request->attributes->get('device_id') ?? session('device_id');
+        $tableId = $request->attributes->get('table_id') ?? session('table_id');
         
-        try {
-            $dbOrders = Order::orderBy('created_at', 'desc')->get();
-        } catch (\Exception $e) {
-            // Database might not be available
+        if (!$deviceId) {
+            $deviceId = DeviceIdentifierService::getOrCreate($request);
         }
         
-        // Also get from JSON storage for backward compatibility
-        try {
-            $jsonOrders = $this->storage->get('orders');
-        } catch (\Exception $e) {
-            // JSON storage might not have orders
+        $sessionId = session()->getId();
+
+        
+        $query = Order::with('table:id,number,location')
+            ->where('device_id', $deviceId)
+            ->orderByDesc('created_at');
+        
+        
+        $orders = $query->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'reference_number' => $order->reference_number,
+                    'customer_nickname' => $order->customer_nickname,
+                    'table_number' => $order->table_number,
+                    'items' => $order->items,
+                    'total' => $order->total,
+                    'total_formatted' => $order->total_decimal,
+                    'status' => $order->status,
+                    'payment_status' => $order->payment_status,
+                    'payment_method' => $order->payment_method,
+                    'can_cancel' => $order->canBeCancelled(),
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at,
+                ];
+            });
+
+        return response()->json($orders);
+    }
+
+    public function cancel(Request $request, int $id): JsonResponse
+    {
+        $deviceId = $request->attributes->get('device_id') ?? session('device_id');
+        $tableId = $request->attributes->get('table_id') ?? session('table_id');
+        
+        if (!$deviceId) {
+            $deviceId = DeviceIdentifierService::getOrCreate($request);
         }
         
-        // Combine both sources (database orders take precedence)
-        $allOrders = $dbOrders->concat($jsonOrders)->unique('id')->sortByDesc('created_at')->values();
-        
-        return response()->json($allOrders);
+        $order = Order::find($id);
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        if ($order->device_id !== $deviceId) {
+            // Fallback: Check if the order's session_id matches current session
+            // This handles cases where device_id might rotate or be inconsistent but session persists
+            if ($order->session_id !== session()->getId()) {
+                 return response()->json(['message' => 'Unauthorized to cancel this order'], 403);
+            }
+        }
+
+        // Allow cancel if status is 'received' (unconfirmed) or 'unpaid'
+        if (!in_array($order->status, ['received', 'unpaid'])) {
+            return response()->json([
+                'message' => 'Order cannot be cancelled. It has already been confirmed.'
+            ], 400);
+        }
+
+        $order->updateStatus('cancelled');
+
+        return response()->json([
+            'message' => 'Order cancelled successfully',
+            'order' => $order
+        ]);
     }
 
     public function store(Request $request): JsonResponse
     {
         try {
             $orderData = [];
+            $deviceId = $request->attributes->get('device_id') ?? session('device_id');
+            $tableId = $request->attributes->get('table_id') ?? session('table_id');
+            
+            if (!$deviceId) {
+                $deviceId = DeviceIdentifierService::getOrCreate($request);
+            }
             
             // Handle both old format (admin) and new format (checkout)
             if ($request->has('customer_name')) {
                 // Old admin format
                 $validated = $request->validate([
                     'customer_name' => 'required|string|max:255',
+                    'table_id' => 'nullable|integer|exists:tables,id',
                     'table_number' => 'nullable|integer',
                     'items' => 'required|array',
                     'items.*.id' => 'required|integer',
@@ -68,17 +125,22 @@ class OrderController extends Controller
                 $orderData = [
                     'order_number' => Order::generateOrderNumber(),
                     'customer_name' => $validated['customer_name'],
+                    'table_id' => $validated['table_id'] ?? $tableId,
                     'table_number' => $validated['table_number'] ?? 'Table 1',
                     'items' => $validated['items'],
-                    'total' => (int)($validated['total'] * 100), // Convert to cents
+                    'total' => (int)($validated['total'] * 100),
                     'subtotal' => (int)($validated['total'] * 100),
                     'status' => 'received',
                     'payment_status' => 'unpaid',
                     'notes' => $validated['notes'] ?? null,
                     'order_type' => 'dine_in',
+                    'device_id' => $deviceId,
+                    'device_ip' => $request->ip(),
+                    'device_type' => $request->header('User-Agent'),
+                    'session_id' => session()->getId(),
                 ];
             } else {
-                // New checkout format
+                // New checkout format (customer orders)
                 $validated = $request->validate([
                     'id' => 'required|string',
                     'referenceNumber' => 'required|string',
@@ -86,6 +148,7 @@ class OrderController extends Controller
                     'customer.nickname' => 'nullable|string',
                     'customer.notes' => 'nullable|string',
                     'customer.tableNumber' => 'nullable|string',
+                    'customer.tableId' => 'nullable|integer|exists:tables,id',
                     'items' => 'required|array',
                     'items.*.id' => 'required',
                     'items.*.name' => 'required|string',
@@ -96,8 +159,12 @@ class OrderController extends Controller
                     'total' => 'required|numeric|min:0',
                     'paymentMethod' => 'required|string',
                     'tableNumber' => 'nullable|string',
-                    'status' => 'required|string'
+                    'tableId' => 'nullable|integer|exists:tables,id',
+                    'status' => 'nullable|string'
                 ]);
+                
+                $sessionId = session()->getId();
+                $deviceIp = $request->ip();
                 
                 // Map checkout items to order items
                 $items = collect($validated['items'])->map(function($item) {
@@ -110,39 +177,85 @@ class OrderController extends Controller
                     ];
                 })->toArray();
 
+                // Map checkout payment status into our payment_status enum
+                $rawStatus = $validated['status'] ?? null;
+                if ($rawStatus === 'paid') {
+                    $paymentStatus = 'paid';
+                } elseif ($rawStatus === 'payment_failed') {
+                    $paymentStatus = 'failed';
+                } else {
+                    $paymentStatus = $validated['paymentMethod'] === 'cash' ? 'unpaid' : 'pending';
+                }
+
+                $workflowStatus = 'received';
+
+                // Check for active table session to determine group context
+                $tableSession = null;
+                if ($tableId) {
+                    $tableSession = \App\Models\TableSession::where('table_id', $tableId)
+                        ->where('status', 'active')
+                        ->first();
+                }
+
+                $isGroupOrder = false;
+                $paymentMode = $validated['paymentMethod'] ?? null;
+                
+                if ($tableSession && isset($tableSession->metadata['payment_mode'])) {
+                     if ($tableSession->metadata['payment_mode'] === 'host') {
+                         $isGroupOrder = true;
+                         $paymentMode = 'host';
+                     }
+                }
+
                 $orderData = [
                     'order_number' => Order::generateOrderNumber(),
                     'reference_number' => $validated['referenceNumber'],
                     'customer_nickname' => $validated['customer']['nickname'] ?? 'Customer',
                     'customer_notes' => $validated['customer']['notes'] ?? null,
+                    'table_id' => $validated['customer']['tableId'] ?? $validated['tableId'] ?? $tableId,
                     'table_number' => $validated['customer']['tableNumber'] ?? $validated['tableNumber'] ?? 'Table 1',
                     'items' => $items,
-                    'total' => (int)($validated['total'] * 100), // Convert to cents
+                    'total' => (int)($validated['total'] * 100),
                     'subtotal' => (int)($validated['total'] * 100),
                     'payment_method' => $validated['paymentMethod'],
-                    'payment_status' => $validated['paymentMethod'] === 'cash' ? 'unpaid' : 'pending',
-                    'status' => $validated['status'],
+                    'payment_status' => $paymentStatus,
+                    'status' => $workflowStatus,
                     'order_type' => 'dine_in',
-                    'device_ip' => $request->ip(),
+                    'device_id' => $deviceId,
+                    'device_ip' => $deviceIp,
                     'device_type' => $request->header('User-Agent'),
-                    'session_id' => session()->getId(),
-                    'original_data' => $validated,
+                    'session_id' => $sessionId,
+                    'original_data' => array_merge($validated, [
+                        'is_group_order' => $isGroupOrder,
+                        'payment_mode' => $paymentMode
+                    ]),
                 ];
             }
 
-            // Try to save to database, fallback to JSON storage
-            try {
-                $order = Order::create($orderData);
-                return response()->json($order, 201);
-            } catch (\Exception $dbError) {
-                // Fallback to JSON storage
-                $jsonData = $orderData;
-                $jsonData['total'] = $orderData['total'] / 100; // Convert back to decimal
-                $jsonData['subtotal'] = $orderData['subtotal'] / 100;
-                
-                $order = $this->storage->create('orders', $jsonData);
-                return response()->json($order, 201);
+            $order = Order::create($orderData);
+
+            // Deduct Inventory Stock
+            foreach ($orderData['items'] as $item) {
+                 $menuItem = \App\Models\MenuItem::find($item['id']);
+                 if ($menuItem) {
+                     foreach ($menuItem->ingredients as $ingredient) {
+                         // Quantity to deduct = (Quantity per item) * (Order Quantity)
+                         $deduction = $ingredient->pivot->quantity;
+                         if (isset($item['quantity'])) {
+                             $deduction *= $item['quantity'];
+                         }
+                         
+                         $ingredient->decrement('stock', $deduction);
+                         
+                         // Optional: Check if stock < 0 and warn (log for now)
+                         if ($ingredient->stock < 0) {
+                             // Log::warning("Inventory item {$ingredient->name} is negative: {$ingredient->stock}");
+                         }
+                     }
+                 }
             }
+
+            return response()->json($order, 201);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -159,29 +272,25 @@ class OrderController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        try {
-            $order = Order::findOrFail($id);
-            return response()->json($order);
-        } catch (\Exception $e) {
-            // Fallback to JSON storage
-            $order = $this->storage->find('orders', $id);
-            
-            if (!$order) {
-                return response()->json(['message' => 'Order not found'], 404);
-            }
-            
-            return response()->json($order);
+        $order = Order::with('table:id,number,location')->find($id);
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
         }
+
+        return response()->json($order);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $order = $this->storage->update('orders', $id, $request->all());
-        
+        $order = Order::find($id);
+
         if (!$order) {
             return response()->json(['message' => 'Order not found'], 404);
         }
-        
+
+        $order->update($request->all());
+
         return response()->json($order);
     }
 
@@ -191,30 +300,51 @@ class OrderController extends Controller
             'status' => 'required|string|in:received,confirmed,queued,preparing,ready,served,completed,cancelled'
         ]);
 
-        try {
-            $order = Order::findOrFail($id);
-            $order->updateStatus($request->status);
-            return response()->json($order);
-        } catch (\Exception $e) {
-            // Fallback to JSON storage
-            $order = $this->storage->update('orders', $id, ['status' => $request->status]);
-            
-            if (!$order) {
-                return response()->json(['message' => 'Order not found'], 404);
-            }
-            
-            return response()->json($order);
+        $order = Order::find($id);
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
         }
+
+        $order->updateStatus($request->status);
+
+        return response()->json($order);
+    }
+
+    /**
+     * Mark order as paid
+     */
+    public function markAsPaid(Request $request, int $id): JsonResponse
+    {
+        $order = Order::find($id);
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        // Optional: Validate payment details if you send them
+        $paymentDetails = $request->input('payment_details', []);
+        
+        $order->markAsPaid($paymentDetails);
+
+        // Auto-confirm if currently received
+        if ($order->status === 'received') {
+            $order->updateStatus('confirmed');
+        }
+
+        return response()->json($order);
     }
 
     public function destroy(int $id): JsonResponse
     {
-        $deleted = $this->storage->delete('orders', $id);
-        
-        if (!$deleted) {
+        $order = Order::find($id);
+
+        if (!$order) {
             return response()->json(['message' => 'Order not found'], 404);
         }
-        
+
+        $order->delete();
+
         return response()->json(['message' => 'Order deleted successfully']);
     }
 }

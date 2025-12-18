@@ -1,0 +1,140 @@
+╔════════════════════════════════════════════════════════════════╗
+║                  QuickServe Hotspot Scripts                    ║
+║                      Quick Reference                           ║
+╚════════════════════════════════════════════════════════════════╝
+
+📁 SCRIPTS CREATED:
+═══════════════════════════════════════════════════════════════
+
+1️⃣  start-hotspot-server.bat / .ps1
+    └─ Main script to start QuickServe on your hotspot
+    └─ Automatically configures IP and starts servers
+    └─ Double-click to run!
+
+2️⃣  setup-database.ps1
+    └─ First-time database setup
+    └─ Choose SQLite or MySQL
+    └─ Run migrations and seed data
+
+3️⃣  stop-server.bat
+    └─ Stops all running servers
+    └─ Kills PHP and Node processes
+
+4️⃣  server-info.bat / .ps1
+    └─ View current configuration
+    └─ Check server status
+    └─ Quick actions menu
+
+═══════════════════════════════════════════════════════════════
+
+🚀 FIRST TIME SETUP:
+═══════════════════════════════════════════════════════════════
+
+Step 1: Enable Windows Hotspot
+   • Win + I → Network & Internet → Mobile hotspot
+   • Turn ON
+   • Note your network name
+
+Step 2: Setup Database (Right-click → Run as Admin)
+   • Double-click: setup-database.ps1
+   • Choose SQLite (recommended) or MySQL
+   • Let it run migrations
+
+Step 3: Start Server (Right-click → Run as Admin)
+   • Double-click: start-hotspot-server.bat
+   • Wait for "Starting QuickServe servers..."
+   • Note the IP address shown
+
+═══════════════════════════════════════════════════════════════
+
+📱 CUSTOMER ACCESS:
+═══════════════════════════════════════════════════════════════
+
+1. Connect to your WiFi hotspot
+2. Open browser
+3. Go to: http://192.168.137.1:8000
+   (or the IP shown when server starts)
+
+═══════════════════════════════════════════════════════════════
+
+🔐 ADMIN ACCESS:
+═══════════════════════════════════════════════════════════════
+
+URL: http://192.168.137.1:8000/admin/login
+     (or the IP shown when server starts)
+
+═══════════════════════════════════════════════════════════════
+
+🎯 QR CODE ACCESS:
+═══════════════════════════════════════════════════════════════
+
+Format: http://192.168.137.1:8000/tables/{id}
+
+Generate QR codes:
+1. Login to admin panel
+2. Go to Tables Management
+3. Download QR codes for each table
+
+═══════════════════════════════════════════════════════════════
+
+📋 DAILY USAGE:
+═══════════════════════════════════════════════════════════════
+
+1. Enable Windows Mobile Hotspot
+2. Double-click: start-hotspot-server.bat
+3. Share WiFi credentials with customers
+4. Customers connect and scan QR codes!
+
+To stop:
+• Press Ctrl+C in terminal, OR
+• Double-click: stop-server.bat
+
+═══════════════════════════════════════════════════════════════
+
+🔧 TROUBLESHOOTING:
+═══════════════════════════════════════════════════════════════
+
+❌ "Firewall rule could not be created"
+   → Right-click script → Run as Administrator
+
+❌ "Port already in use"
+   → Run stop-server.bat first
+
+❌ "Cannot access from phone"
+   → Check phone connected to your hotspot WiFi
+   → Check Windows Firewall allows ports 8000 & 5173
+   → Run server-info.bat to verify configuration
+
+❌ "Database error"
+   → Run setup-database.ps1 again
+   → Choose SQLite for easier setup
+
+═══════════════════════════════════════════════════════════════
+
+💡 TIPS:
+═══════════════════════════════════════════════════════════════
+
+✓ Keep laptop plugged in (hotspot uses battery)
+✓ Disable sleep mode while hosting
+✓ Hotspot IP is usually: 192.168.137.1
+✓ WiFi range: ~30-50 meters typical
+✓ Run as Administrator for full firewall setup
+
+═══════════════════════════════════════════════════════════════
+
+📊 SERVER PORTS:
+═══════════════════════════════════════════════════════════════
+
+Laravel:  8000
+Vite:     5173 (auto-loaded by Laravel)
+
+═══════════════════════════════════════════════════════════════
+
+✅ YOU'RE READY!
+═══════════════════════════════════════════════════════════════
+
+Just run: start-hotspot-server.bat
+
+Happy ordering! 🍽️
+
+═══════════════════════════════════════════════════════════════

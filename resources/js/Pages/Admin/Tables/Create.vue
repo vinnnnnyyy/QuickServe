@@ -6,32 +6,54 @@ import FormSelect from '@/Components/Admin/Forms/FormSelect.vue';
 import FormTextarea from '@/Components/Admin/Forms/FormTextarea.vue';
 import FormSection from '@/Components/Admin/Forms/FormSection.vue';
 import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
+
+const props = defineProps({
+  existingLocations: {
+    type: Array,
+    default: () => []
+  },
+  existingCapacities: {
+    type: Array,
+    default: () => []
+  },
+  existingFeatures: {
+    type: Array,
+    default: () => []
+  },
+  nextTableNumber: {
+    type: Number,
+    default: 1
+  }
+});
 
 // Form data
-const form = ref({
+const form = useForm({
   number: '',
   location: '',
   capacity: '',
   description: '',
-  notes: ''
+  notes: '',
+  features: []
 });
 
 const newLocation = ref('');
 const showNewLocation = ref(false);
 const newCapacity = ref('');
 const showNewCapacity = ref(false);
+const newFeature = ref('');
 
-// Location options with colors (matching Tables.vue)
-const locationOptions = ref([
+const defaultLocationOptions = [
   { value: 'indoor', label: 'Indoor', color: 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400', dot: 'bg-green-500' },
   { value: 'outdoor', label: 'Outdoor', color: 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400', dot: 'bg-blue-500' },
   { value: 'patio', label: 'Patio', color: 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400', dot: 'bg-purple-500' },
   { value: 'bar', label: 'Bar', color: 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400', dot: 'bg-amber-500' }
-]);
+];
+
+const locationOptions = ref([...defaultLocationOptions]);
 
 // Capacity options
-const capacityOptions = ref([
+const defaultCapacityOptions = [
   { value: '1', label: '1 Person (Single)' },
   { value: '2', label: '2 People (Couple)' },
   { value: '3', label: '3 People (Small Group)' },
@@ -41,23 +63,147 @@ const capacityOptions = ref([
   { value: '8', label: '8 People (Large Table)' },
   { value: '10', label: '10 People (Conference)' },
   { value: '12', label: '12+ People (Event Table)' }
-]);
+];
+
+const capacityOptions = ref([...defaultCapacityOptions]);
+
+const defaultFeatureOptions = [
+  'Window View',
+  'Power Outlets',
+  'Wheelchair Accessible',
+  'Quiet Area',
+  'Premium Table',
+  'Private/Secluded'
+];
+
+const featureOptions = ref([...defaultFeatureOptions]);
+
+const STORAGE_KEYS = {
+  locations: 'table_custom_locations',
+  capacities: 'table_custom_capacities',
+  features: 'table_custom_features'
+};
+
+const persistOptions = (key, data) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.warn('Unable to persist custom options:', error);
+  }
+};
+
+const loadPersistedOptions = (key) => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn('Unable to load persisted options:', error);
+    return [];
+  }
+};
+
+const slugifyLocation = (label) =>
+  label?.toString().trim().toLowerCase().replace(/\s+/g, '_');
+
+const addExistingLocations = (locations) => {
+  locations.forEach((location) => {
+    if (!location) return;
+    const value = slugifyLocation(location);
+    if (!value) return;
+
+    const exists = locationOptions.value.some((option) => option.value === value);
+    if (!exists) {
+      locationOptions.value.push({
+        value,
+        label: location,
+        color: 'bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400',
+        dot: 'bg-gray-500'
+      });
+    }
+  });
+};
+
+const formatCapacityLabel = (capacity) => {
+  const num = Number(capacity);
+  if (Number.isNaN(num)) {
+    return `${capacity} seats`;
+  }
+  return `${num} ${num === 1 ? 'Person' : 'People'} (Custom)`;
+};
+
+const addExistingCapacities = (capacities) => {
+  capacities.forEach((capacity) => {
+    if (capacity === null || capacity === undefined) return;
+    const value = String(capacity);
+    const exists = capacityOptions.value.some((option) => option.value === value);
+    if (!exists) {
+      capacityOptions.value.push({
+        value,
+        label: formatCapacityLabel(capacity)
+      });
+    }
+  });
+};
+
+const addExistingFeatures = (features) => {
+  features.forEach((feature) => {
+    const label = feature?.toString().trim();
+    if (!label) return;
+    const exists = featureOptions.value.includes(label);
+    if (!exists) {
+      featureOptions.value.push(label);
+    }
+  });
+};
+
+addExistingLocations(props.existingLocations);
+addExistingCapacities(props.existingCapacities);
+addExistingFeatures(props.existingFeatures);
+
+addExistingLocations(loadPersistedOptions(STORAGE_KEYS.locations));
+addExistingCapacities(loadPersistedOptions(STORAGE_KEYS.capacities));
+addExistingFeatures(loadPersistedOptions(STORAGE_KEYS.features));
+
+form.number = String(props.nextTableNumber ?? 1);
+
+const addNewFeature = () => {
+  const label = newFeature.value.trim();
+  if (!label) {
+    alert('Please enter a feature name.');
+    return;
+  }
+
+  if (!featureOptions.value.includes(label)) {
+    featureOptions.value.push(label);
+  }
+
+  if (!form.features.includes(label)) {
+    form.features.push(label);
+  }
+
+  persistOptions(STORAGE_KEYS.features, featureOptions.value);
+  newFeature.value = '';
+};
 
 // Methods
 const handleLocationChange = (value) => {
   if (value === 'add_new') {
     showNewLocation.value = true;
-    form.value.location = '';
+    form.location = '';
   } else {
     showNewLocation.value = false;
-    form.value.location = value;
+    form.location = value;
   }
 };
 
 const addNewLocation = () => {
   if (newLocation.value.trim()) {
     const newValue = newLocation.value.trim().toLowerCase().replace(/\s+/g, '_');
-    form.value.location = newValue;
+    form.location = newValue;
     locationOptions.value.push({
       value: newValue,
       label: newLocation.value.trim(),
@@ -66,22 +212,26 @@ const addNewLocation = () => {
     });
     showNewLocation.value = false;
     newLocation.value = '';
+    const customLocations = locationOptions.value
+      .filter((option) => !defaultLocationOptions.find((defaultOpt) => defaultOpt.value === option.value))
+      .map((option) => option.label);
+    persistOptions(STORAGE_KEYS.locations, customLocations);
   }
 };
 
 const cancelNewLocation = () => {
   showNewLocation.value = false;
   newLocation.value = '';
-  form.value.location = '';
+  form.location = '';
 };
 
 const handleCapacityChange = (value) => {
   if (value === 'add_new') {
     showNewCapacity.value = true;
-    form.value.capacity = '';
+    form.capacity = '';
   } else {
     showNewCapacity.value = false;
-    form.value.capacity = value;
+    form.capacity = value;
   }
 };
 
@@ -90,13 +240,17 @@ const addNewCapacity = () => {
     const capacityNum = parseInt(newCapacity.value.trim());
     if (capacityNum > 0 && capacityNum <= 50) { // Reasonable limits
       const newValue = capacityNum.toString();
-      form.value.capacity = newValue;
+      form.capacity = newValue;
       capacityOptions.value.push({
         value: newValue,
         label: `${capacityNum} ${capacityNum === 1 ? 'Person' : 'People'} (Custom)`
       });
       showNewCapacity.value = false;
       newCapacity.value = '';
+      const customCapacities = capacityOptions.value
+        .filter((option) => !defaultCapacityOptions.find((defaultOpt) => defaultOpt.value === option.value))
+        .map((option) => option.value);
+      persistOptions(STORAGE_KEYS.capacities, customCapacities);
     } else {
       alert('Please enter a valid capacity between 1 and 50.');
     }
@@ -108,7 +262,7 @@ const addNewCapacity = () => {
 const cancelNewCapacity = () => {
   showNewCapacity.value = false;
   newCapacity.value = '';
-  form.value.capacity = '';
+  form.capacity = '';
 };
 
 const generateQRCode = (tableNumber) => {
@@ -126,55 +280,49 @@ const getLocationConfig = (locationValue) => {
 };
 
 const submitForm = () => {
-  // Validate required fields
-  if (!form.value.number || !form.value.location || !form.value.capacity) {
+  if (!form.number || !form.location || !form.capacity) {
     alert('Please fill in all required fields.');
     return;
   }
 
-  // Validate table number
-  const tableNumber = parseInt(form.value.number);
-  if (isNaN(tableNumber) || tableNumber <= 0) {
+  const tableNumber = parseInt(form.number, 10);
+  if (Number.isNaN(tableNumber) || tableNumber <= 0) {
     alert('Please enter a valid table number.');
     return;
   }
 
-  // Validate capacity
-  const capacity = parseInt(form.value.capacity);
-  if (isNaN(capacity) || capacity <= 0) {
+  const capacity = parseInt(form.capacity, 10);
+  if (Number.isNaN(capacity) || capacity <= 0) {
     alert('Please enter a valid capacity.');
     return;
   }
 
-  const locationConfig = getLocationConfig(form.value.location);
+  const locationConfig = getLocationConfig(form.location);
 
-  const newTable = {
-    id: Date.now(),
-    number: tableNumber,
-    location: locationConfig.label,
-    locationColor: locationConfig.color,
-    capacity: capacity,
-    occupied: 0,
-    status: 'available',
-    statusColor: 'bg-green-200 dark:bg-green-800 border-green-200 dark:border-green-800',
-    statusText: 'Available',
-    statusDot: 'bg-green-500',
-    qrCode: generateQRCode(tableNumber),
-    sessions: [],
-    description: form.value.description,
-    notes: form.value.notes,
-    createdAt: new Date().toISOString().split('T')[0]
-  };
-
-  console.log('New table:', newTable);
-  alert(`Table ${form.value.number} has been added successfully!`);
-  
-  // Navigate back to tables page
-  router.get('/admin/tables');
+  form
+    .transform((data) => ({
+      ...data,
+      number: tableNumber,
+      capacity,
+      location: locationConfig.label ?? data.location,
+    }))
+    .post(route('admin.tables.store'), {
+      onError: (errors) => {
+        console.error(errors);
+        alert('Error: ' + Object.values(errors).join('\n'));
+      },
+      onSuccess: () => {
+        form.reset();
+        form.number = generateNextTableNumber();
+      },
+      onFinish: () => {
+        form.transform((data) => data);
+      }
+    });
 };
 
 const saveDraft = () => {
-  localStorage.setItem('tableDraft', JSON.stringify(form.value));
+  localStorage.setItem('tableDraft', JSON.stringify(form.data()));
   alert('Draft saved successfully!');
 };
 
@@ -182,15 +330,9 @@ const goBack = () => {
   router.get('/admin/tables');
 };
 
-// Auto-generate next table number (in real app, this would come from backend)
-const generateNextTableNumber = () => {
-  // This would typically be calculated from existing tables
-  // For now, we'll start with a reasonable number
-  return '7'; // Next available number after the sample data
+const resetTableNumber = () => {
+  form.number = String((props.nextTableNumber ?? 1) + 1);
 };
-
-// Set default table number on component mount
-form.value.number = generateNextTableNumber();
 </script>
 
 <template>
@@ -425,74 +567,44 @@ form.value.number = generateNextTableNumber();
             />
 
             <!-- Features Checklist -->
-            <div class="space-y-3">
-              <label class="block text-sm font-semibold text-gray-900 dark:text-white">Table Features</label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200">
-                  <input
-                    type="checkbox"
-                    class="w-4 h-4 rounded text-[#ec7813] focus:ring-[#ec7813] focus:ring-2"
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Table Features</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <label
+                    v-for="feature in featureOptions"
+                    :key="feature"
+                    class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
                   >
-                  <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-gray-600 dark:text-gray-400">visibility</span>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">Window View</span>
-                  </div>
-                </label>
+                    <input
+                      type="checkbox"
+                      class="w-4 h-4 rounded text-[#ec7813] focus:ring-[#ec7813] focus:ring-2"
+                      v-model="form.features"
+                      :value="feature"
+                    >
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ feature }}</span>
+                  </label>
+                </div>
+              </div>
 
-                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200">
-                  <input
-                    type="checkbox"
-                    class="w-4 h-4 rounded text-[#ec7813] focus:ring-[#ec7813] focus:ring-2"
+              <div class="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-4 bg-gray-50/60 dark:bg-gray-800/30">
+                <label class="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Add Custom Feature</label>
+                <div class="flex flex-col sm:flex-row gap-3">
+                  <FormInput
+                    v-model="newFeature"
+                    placeholder="e.g., USB Charging Ports"
+                    class="flex-1"
+                  />
+                  <button
+                    type="button"
+                    @click="addNewFeature"
+                    class="px-4 py-2 rounded-lg bg-[#ec7813] text-white hover:bg-[#ea580c] transition-all font-medium flex items-center justify-center gap-2"
                   >
-                  <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-gray-600 dark:text-gray-400">power</span>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">Power Outlets</span>
-                  </div>
-                </label>
-
-                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200">
-                  <input
-                    type="checkbox"
-                    class="w-4 h-4 rounded text-[#ec7813] focus:ring-[#ec7813] focus:ring-2"
-                  >
-                  <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-gray-600 dark:text-gray-400">accessible</span>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">Wheelchair Accessible</span>
-                  </div>
-                </label>
-
-                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200">
-                  <input
-                    type="checkbox"
-                    class="w-4 h-4 rounded text-[#ec7813] focus:ring-[#ec7813] focus:ring-2"
-                  >
-                  <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-gray-600 dark:text-gray-400">volume_off</span>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">Quiet Area</span>
-                  </div>
-                </label>
-
-                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200">
-                  <input
-                    type="checkbox"
-                    class="w-4 h-4 rounded text-[#ec7813] focus:ring-[#ec7813] focus:ring-2"
-                  >
-                  <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-gray-600 dark:text-gray-400">star</span>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">Premium Table</span>
-                  </div>
-                </label>
-
-                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200">
-                  <input
-                    type="checkbox"
-                    class="w-4 h-4 rounded text-[#ec7813] focus:ring-[#ec7813] focus:ring-2"
-                  >
-                  <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-gray-600 dark:text-gray-400">shield</span>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">Private/Secluded</span>
-                  </div>
-                </label>
+                    <span class="material-symbols-outlined text-sm">add</span>
+                    Add Feature
+                  </button>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Custom features are saved and available for future tables.</p>
               </div>
             </div>
           </div>

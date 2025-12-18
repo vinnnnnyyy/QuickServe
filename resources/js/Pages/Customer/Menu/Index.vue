@@ -13,6 +13,35 @@ import { useSelectionModal } from '../../../composables/useSelectionModal.js'
 import { toProduct, slugify } from '../../../composables/productTransform.js'
 
 // ============================================================================
+// Props
+// ============================================================================
+const props = defineProps({
+  tableId: {
+    type: Number,
+    default: null
+  },
+  tableNumber: {
+    type: Number,
+    default: null
+  },
+  token: {
+    type: String,
+    default: null
+  }
+})
+
+// Store table info globally for checkout
+if (props.tableId) {
+  sessionStorage.setItem('currentTableId', props.tableId)
+}
+if (props.tableNumber) {
+  sessionStorage.setItem('currentTableNumber', props.tableNumber)
+}
+if (props.token) {
+  sessionStorage.setItem('authTableToken', props.token)
+}
+
+// ============================================================================
 // Constants
 // ============================================================================
 const API_URL = '/api/menu'

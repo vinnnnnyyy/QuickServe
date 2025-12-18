@@ -535,6 +535,13 @@ onUnmounted(() => {
                 <div class="flex items-start justify-between mb-3">
                   <div class="flex items-center gap-4 flex-1 min-w-0">
                     <div
+                      v-if="member.image"
+                      class="w-14 h-14 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm border-2 border-gray-200 dark:border-gray-700"
+                    >
+                      <img :src="member.image" :alt="member.name" class="w-full h-full object-cover">
+                    </div>
+                    <div
+                      v-else
                       :class="member.avatarColor"
                       class="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-sm"
                     >
@@ -813,6 +820,13 @@ onUnmounted(() => {
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="flex items-center gap-4">
               <div 
+                v-if="selectedStaff.image"
+                class="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-gray-200 dark:border-gray-700"
+              >
+                <img :src="selectedStaff.image" :alt="selectedStaff.name" class="w-full h-full object-cover">
+              </div>
+              <div 
+                v-else
                 :class="selectedStaff.avatarColor"
                 class="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0"
               >

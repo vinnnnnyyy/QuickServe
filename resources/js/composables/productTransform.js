@@ -47,9 +47,15 @@ export const toProduct = (item, config = {}) => {
     description: item?.description ?? '',
     // Use price_formatted accessor (cents to dollars) or fallback
     price: Number(item?.price_formatted ?? ((item?.price ?? 0) / 100)),
+    price_formatted: Number(item?.price_formatted ?? ((item?.price ?? 0) / 100)),
     // Use image_url accessor from model for storage symlink
     image: item?.image_url ?? placeholderImage,
+    image_url: item?.image_url ?? placeholderImage,
     category: slugify(categoryName),
+    // Size labels for customization modal
+    size_labels: item?.size_labels ?? ['Small', 'Medium', 'Large'],
+    // Addons for customization modal
+    addons: item?.addons ?? [],
     // Use deterministic defaults instead of random values
     rating: item?.rating ?? defaultRating,
     reviewCount: item?.review_count ?? defaultReviewCount,
