@@ -28,8 +28,14 @@ const loadOrder = () => {
 }
 
 const continueOrdering = () => {
+    const token = sessionStorage.getItem('authTableToken')
+    if (token) {
+        router.visit(`/table/${token}`)
+        return
+    }
+
     if (order.value?.tableId) {
-        router.visit(`/table/${order.value.tableId}`)
+        router.visit('/')
     } else {
         router.visit('/')
     }

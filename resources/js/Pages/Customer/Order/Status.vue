@@ -48,8 +48,14 @@ const currentStepIndex = computed(() => {
 })
 
 const goToMenu = () => {
+    const token = sessionStorage.getItem('authTableToken')
+    if (token) {
+        router.visit(`/table/${token}`)
+        return
+    }
+
     if (currentOrder.value?.tableId) {
-        router.visit(`/table/${currentOrder.value.tableId}`)
+        router.visit('/')
     } else {
         router.visit('/')
     }
@@ -62,8 +68,15 @@ const goToConfirmation = () => {
 const clearOrder = () => {
     const tableId = currentOrder.value?.tableId
     clearCurrentOrder()
+    
+    const token = sessionStorage.getItem('authTableToken')
+    if (token) {
+        router.visit(`/table/${token}`)
+        return
+    }
+
     if (tableId) {
-        router.visit(`/table/${tableId}`)
+        router.visit('/')
     } else {
         router.visit('/')
     }
