@@ -160,7 +160,8 @@ class OrderController extends Controller
                     'paymentMethod' => 'required|string',
                     'tableNumber' => 'nullable|string',
                     'tableId' => 'nullable|integer|exists:tables,id',
-                    'status' => 'nullable|string'
+                    'status' => 'nullable|string',
+                    'paymentMode' => 'nullable|string'
                 ]);
                 
                 $sessionId = session()->getId();
@@ -199,9 +200,11 @@ class OrderController extends Controller
 
                 $isGroupOrder = false;
                 $paymentMode = $validated['paymentMethod'] ?? null;
+                $requestedPaymentMode = $validated['paymentMode'] ?? null;
                 
                 if ($tableSession && isset($tableSession->metadata['payment_mode'])) {
-                     if ($tableSession->metadata['payment_mode'] === 'host') {
+                     // Only enforce host mode if the user hasn't explicitly chosen individual
+                     if ($tableSession->metadata['payment_mode'] === 'host' && $requestedPaymentMode !== 'individual') {
                          $isGroupOrder = true;
                          $paymentMode = 'host';
                      }

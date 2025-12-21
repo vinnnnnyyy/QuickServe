@@ -16,6 +16,7 @@ import VoiceOrderModal from '../Components/Customer/Voice/VoiceOrderModal.vue';
 import BottomNavigation from '../Components/Customer/Navigation/BottomNavigation.vue';
 import HostControlPanel from '../Components/Customer/Group/HostControlPanel.vue';
 import WaitingRoom from '../Pages/Customer/Group/WaitingRoom.vue';
+import JoinSessionPrompt from '../Components/Customer/Modals/JoinSessionPrompt.vue';
 import { useCheckout } from '../composables/useCheckout.js';
 import { useOrderHistory } from '../composables/useOrderHistory.js';
 import { usePage } from '@inertiajs/vue3'
@@ -51,6 +52,8 @@ const showVoiceModal = ref(false)
 const page = usePage()
 const paymentMode = ref(page.props.paymentMode || 'host')
 const joinRequestSent = ref(false)
+const userChangedToIndividual = ref(false)
+const showJoinPrompt = ref(false)
 
 // Group Session State
 const isHost = ref(false);
@@ -58,6 +61,11 @@ const myStatus = ref('approved'); // approved, pending, rejected
 const sessionUsers = ref([]);
 const tableId = computed(() => page.props.tableId);
 const isPendingApproval = computed(() => myStatus.value === 'pending');
+const hostName = computed(() => {
+    // Attempt to find host name in users list
+    const hostUser = sessionUsers.value.find(u => u.role === 'host');
+    return hostUser ? hostUser.name : 'Host';
+});
 
 // Heartbeat & Cart Polling
 let heartbeatInterval = null
@@ -66,8 +74,6 @@ let sessionPollingInterval = null;
 
 const startPolling = () => {
     const session = page.props.tableSession
-    // Explicitly use tableSession ID for heartbeat/API. 
-    // The Laravel session ID is not the TableSession ID.
     const sessionId = session ? session.id : null
 
     // 1. Heartbeat
@@ -79,7 +85,8 @@ const startPolling = () => {
     }
 
     // 2. Shared Cart & Session Status Polling
-    if (session && session.payment_mode === 'host') {
+    // Only start polling if we haven't explicitly opted out (Individual Mode)
+    if (session && session.payment_mode === 'host' && !userChangedToIndividual.value) {
         console.log('Initializing One Bill (Shared Cart) Mode')
         setMode('table')
         
@@ -89,8 +96,10 @@ const startPolling = () => {
 
         // Poll every 5 seconds
         cartPollingInterval = setInterval(() => {
-            refreshCart()
-            checkSessionStatus()
+            if (!userChangedToIndividual.value) {
+                refreshCart()
+                checkSessionStatus()
+            }
         }, 5000)
     } else {
         setMode('local')
@@ -98,27 +107,28 @@ const startPolling = () => {
 }
 
 const checkSessionStatus = async () => {
-    if (!tableId.value) return;
+    if (!tableId.value || userChangedToIndividual.value) return;
     try {
         const response = await axios.get(`/api/session/${tableId.value}/status`);
         isHost.value = response.data.is_host;
-        myStatus.value = response.data.my_status;
+        
+        // If I am the host, I am implicitly approved
+        if (isHost.value) {
+             myStatus.value = 'approved';
+        } else {
+             myStatus.value = response.data.my_status;
+        }
+
         sessionUsers.value = response.data.users;
         if (response.data.payment_mode) {
             paymentMode.value = response.data.payment_mode;
         }
 
-        // Auto-Join if unknown and in host mode
-        if (paymentMode.value === 'host' && myStatus.value === 'unknown' && !joinRequestSent.value) {
-            console.log('Auto-joining session...');
-            joinSession();
+        // Show Join Prompt if active host session exists, I'm unknown, and haven't chosen yet
+        if (paymentMode.value === 'host' && myStatus.value === 'unknown' && !joinRequestSent.value && !userChangedToIndividual.value) {
+            showJoinPrompt.value = true;
         }
-
-        // If rejected, maybe redirect or show message?
-        if (myStatus.value === 'rejected') {
-             // alert('Your request to join the group was rejected.');
-             // Logic to leave session or redirect
-        }
+        
     } catch (error) {
         console.error('Failed to check session status:', error);
     }
@@ -127,20 +137,47 @@ const checkSessionStatus = async () => {
 const joinSession = async () => {
   try {
     joinRequestSent.value = true;
+    showJoinPrompt.value = false;
     await axios.post('/api/session/join-request', {
       table_id: tableId.value,
-      customer_name: 'Guest' // Fallback name for auto-join
+      customer_name: 'Guest' // Could prompt for name later
     })
-    // After joining, we expect status to become 'pending' on next poll
+    // Immediately check status to update UI to "Pending"
+    checkSessionStatus();
   } catch (err) {
-    console.error('Auto-join failed:', err)
-    joinRequestSent.value = false; // Reset on failure to allow retry (maybe with delay)
+    console.error('Join failed:', err)
+    joinRequestSent.value = false;
+    alert('Failed to send join request. Please try again.');
   }
 }
 
+const handleIndividualSession = () => {
+    userChangedToIndividual.value = true;
+    showJoinPrompt.value = false;
+    paymentMode.value = 'individual'; // Explicitly set mode
+    setMode('local'); // Switch to local cart
+    // Clear any polling intervals that rely on shared state? 
+    // Actually keep heartbeat but stop cart syncing
+}
+
+const handleCancelRequest = async () => {
+    try {
+        await axios.post('/api/session/disconnect'); // Removes user from session in backend
+        joinRequestSent.value = false;
+        myStatus.value = 'unknown'; // Reset status
+        
+        // Re-show prompt or let them choose?
+        // Let's show the prompt again so they can choose Individual this time
+        showJoinPrompt.value = true; 
+        
+    } catch (err) {
+        console.error('Cancel failed', err);
+    }
+}
+
+
 const pingServer = async (sessionId) => {
   try {
-    // Only send if tab is visible to avoid spam from background tabs
     if (document.visibilityState === 'visible') {
       await window.axios.put(`/api/table-sessions/${encodeURIComponent(sessionId)}/activity`, {
         activity: 'Active'
@@ -205,7 +242,7 @@ defineSlots();
         v-if="isPendingApproval" 
         :customer-name="page.props.customerType?.name || 'Guest'" 
         :table-number="page.props.tableNumber"
-        @cancel="() => {}"
+        @cancel="handleCancelRequest"
     />
 
     <div v-else class="relative flex h-auto min-h-screen w-full flex-col justify-between overflow-x-hidden">
@@ -309,7 +346,13 @@ defineSlots();
       @scroll-to-menu="() => {}"
     />
 
-
+    <!-- Join Session Prompt Modal -->
+    <JoinSessionPrompt 
+        :show="showJoinPrompt"
+        :host-name="hostName"
+        @join="joinSession"
+        @individual="handleIndividualSession"
+    />
 
     <!-- Add to Cart Toast -->
     <AddToCartToast />
